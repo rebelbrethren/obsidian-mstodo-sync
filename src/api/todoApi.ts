@@ -1,172 +1,111 @@
-import * as msal from '@azure/msal-node';
-import * as msalCommon from '@azure/msal-common';
-import { Client } from '@microsoft/microsoft-graph-client';
-import { TodoTask, TodoTaskList } from '@microsoft/microsoft-graph-types';
-import { DataAdapter, Notice } from 'obsidian';
-import { MicrosoftAuthModal } from '../gui/microsoftAuthModal';
-import { t } from '../lib/lang';
+import {type Client} from '@microsoft/microsoft-graph-client';
+import {type TodoTask, type TodoTaskList} from '@microsoft/microsoft-graph-types';
+import {type App, Notice} from 'obsidian';
+import {t} from '../lib/lang.js';
+import {log, logging} from '../lib/logging.js';
+import {MicrosoftClientProvider} from './microsoftClientProvider.js';
 
 export class TodoApi {
-	private client: Client;
-	constructor() {
-		new MicrosoftClientProvider().getClient().then((client) => (this.client = client));
-	}
-	// List operation
-	async getLists(searchPattern?: string): Promise<TodoTaskList[] | undefined> {
-		const endpoint = '/me/todo/lists';
-		const todoLists = (await this.client.api(endpoint).get()).value as TodoTaskList[];
-		return await Promise.all(
-			todoLists.map(async (taskList) => {
-				const containedTasks = await this.getListTasks(taskList.id, searchPattern);
-				return {
-					...taskList,
-					tasks: containedTasks,
-				};
-			}),
-		);
-	}
-	async getListIdByName(listName: string | undefined): Promise<string | undefined> {
-		if (!listName) return;
-		const endpoint = '/me/todo/lists';
-		const res: TodoTaskList[] = (
-			await this.client.api(endpoint).filter(`contains(displayName,'${listName}')`).get()
-		).value;
-		if (!res || res.length == 0) return;
-		const target = res[0] as TodoTaskList;
-		return target.id;
-	}
-	async getList(listId: string | undefined): Promise<TodoTaskList | undefined> {
-		if (!listId) return;
-		const endpoint = `/me/todo/lists/${listId}`;
-		return (await this.client.api(endpoint).get()) as TodoTaskList;
-	}
-	async createTaskList(displayName: string | undefined): Promise<TodoTaskList | undefined> {
-		if (!displayName) return;
-		return await this.client.api('/me/todo/lists').post({
-			displayName,
-		});
-	}
+  private readonly logger = logging.getLogger('mstodo-sync.TodoApi');
 
-	// Task operation
-	async getListTasks(listId: string | undefined, searchText?: string): Promise<TodoTask[] | undefined> {
-		if (!listId) return;
-		const endpoint = `/me/todo/lists/${listId}/tasks`;
-		if (!searchText) return;
-		const res = await this.client
-			.api(endpoint)
-			.filter(searchText)
-			.get()
-			.catch((err) => {
-				new Notice(t('Notice_UnableToAcquireTaskFromConfiguredList'));
-				return;
-			});
-		if (!res) return;
-		return res.value as TodoTask[];
-	}
-	async getTask(listId: string, taskId: string): Promise<TodoTask | undefined> {
-		const endpoint = `/me/todo/lists/${listId}/tasks/${taskId}`;
-		return (await this.client.api(endpoint).get()) as TodoTask;
-	}
+  private client: Client;
 
-	async createTaskFromToDo(listId: string | undefined, toDo: TodoTask): Promise<TodoTask> {
-		const endpoint = `/me/todo/lists/${listId}/tasks`;
-		return await this.client.api(endpoint).post(toDo);
-	}
+  constructor(app: App) {
+    new MicrosoftClientProvider(app).getClient().then(client => {
+      this.client = client;
+    }).catch(() => {
+      const notice = new Notice(t('Notice_UnableToAcquireClient'));
+    });
+  }
 
-	async updateTaskFromToDo(listId: string | undefined, taskId: string, toDo: TodoTask): Promise<TodoTask> {
-		const endpoint = `/me/todo/lists/${listId}/tasks/${taskId}`;
-		return await this.client.api(endpoint).patch(toDo);
-	}
-}
+  // List operation
+  async getLists(searchPattern?: string): Promise<TodoTaskList[] | undefined> {
+    const endpoint = '/me/todo/lists';
+    const todoLists = (await this.client.api(endpoint).get()).value as TodoTaskList[];
+    return Promise.all(
+      todoLists.map(async taskList => {
+        const containedTasks = await this.getListTasks(taskList.id, searchPattern);
+        return {
+          ...taskList,
+          tasks: containedTasks,
+        };
+      }),
+    );
+  }
 
-export class MicrosoftClientProvider {
-	private readonly clientId = 'a1172059-5f55-45cd-9665-8dccc98c2587';
-	private readonly authority = 'https://login.microsoftonline.com/consumers';
-	private readonly scopes: string[] = ['Tasks.ReadWrite', 'openid', 'profile'];
-	private readonly pca: msal.PublicClientApplication;
-	private readonly adapter: DataAdapter;
-	private readonly cachePath: string;
+  async getListIdByName(listName: string | undefined): Promise<string | undefined> {
+    if (!listName) {
+      return;
+    }
 
-	constructor() {
-		this.adapter = app.vault.adapter;
-		this.cachePath = `${app.vault.configDir}/Microsoft_cache.json`;
+    const endpoint = '/me/todo/lists';
+    const response = await this.client.api(endpoint).filter(`contains(displayName,'${listName}')`).get(); // eslint-disable-line @typescript-eslint/no-unsafe-assignment
+    const resource: TodoTaskList[] = response.value as TodoTaskList[];
+    if (!resource || resource.length === 0) {
+      return;
+    }
 
-		const beforeCacheAccess = async (cacheContext: msalCommon.TokenCacheContext) => {
-			if (await this.adapter.exists(this.cachePath)) {
-				cacheContext.tokenCache.deserialize(await this.adapter.read(this.cachePath));
-			}
-		};
-		const afterCacheAccess = async (cacheContext: msalCommon.TokenCacheContext) => {
-			if (cacheContext.cacheHasChanged) {
-				await this.adapter.write(this.cachePath, cacheContext.tokenCache.serialize());
-			}
-		};
-		const cachePlugin = {
-			beforeCacheAccess,
-			afterCacheAccess,
-		};
-		const config = {
-			auth: {
-				clientId: this.clientId,
-				authority: this.authority,
-			},
-			cache: {
-				cachePlugin,
-			},
-		};
-		this.pca = new msal.PublicClientApplication(config);
-	}
+    const target = resource[0];
+    return target.id;
+  }
 
-	private async getAccessToken() {
-		const msalCacheManager = this.pca.getTokenCache();
-		if (await this.adapter.exists(this.cachePath)) {
-			msalCacheManager.deserialize(await this.adapter.read(this.cachePath));
-		}
-		const accounts = await msalCacheManager.getAllAccounts();
-		if (accounts.length == 0) {
-			return await this.authByDevice();
-		} else {
-			return await this.authByCache(accounts[0]);
-		}
-	}
-	private async authByDevice(): Promise<string> {
-		const deviceCodeRequest = {
-			deviceCodeCallback: (response: msalCommon.DeviceCodeResponse) => {
-				new Notice(t('Notice_DeviceCodeOnClipboard'));
-				navigator.clipboard.writeText(response['userCode']);
-				new MicrosoftAuthModal(response['userCode'], response['verificationUri']).open();
-				console.log(t('Notice_DeviceCodeCopiedToClipboard'), response['userCode']);
-			},
-			scopes: this.scopes,
-		};
-		return await this.pca.acquireTokenByDeviceCode(deviceCodeRequest).then((res) => {
-			return res == null ? 'error' : res['accessToken'];
-		});
-	}
+  async getList(listId: string | undefined): Promise<TodoTaskList | undefined> {
+    if (!listId) {
+      return;
+    }
 
-	private async authByCache(account: msal.AccountInfo): Promise<string> {
-		const silentRequest = {
-			account: account,
-			scopes: this.scopes,
-		};
-		return await this.pca
-			.acquireTokenSilent(silentRequest)
-			.then((res) => {
-				return res == null ? 'error' : res['accessToken'];
-			})
-			.catch(async (err) => {
-				return await this.authByDevice();
-			});
-	}
+    const endpoint = `/me/todo/lists/${listId}`;
+    return (await this.client.api(endpoint).get()) as TodoTaskList;
+  }
 
-	public async getClient() {
-		const authProvider = async (callback: (arg0: string, arg1: string) => void) => {
-			const accessToken = await this.getAccessToken();
-			const error = ' ';
-			callback(error, accessToken);
-		};
-		return Client.init({
-			authProvider,
-		});
-	}
+  async createTaskList(displayName: string | undefined): Promise<TodoTaskList | undefined> {
+    if (!displayName) {
+      return;
+    }
+
+    return this.client.api('/me/todo/lists').post({
+      displayName,
+    });
+  }
+
+  // Task operation
+  async getListTasks(listId: string | undefined, searchText?: string): Promise<TodoTask[] | undefined> {
+    if (!listId) {
+      return;
+    }
+
+    const endpoint = `/me/todo/lists/${listId}/tasks`;
+    if (!searchText) {
+      return;
+    }
+
+    const res = await this.client
+      .api(endpoint)
+      .filter(searchText)
+      .get()
+      .catch(error => {
+        new Notice(t('Notice_UnableToAcquireTaskFromConfiguredList'));
+      });
+    if (!res) {
+      return;
+    }
+
+    return res.value as TodoTask[];
+  }
+
+  async getTask(listId: string, taskId: string): Promise<TodoTask | undefined> {
+    const endpoint = `/me/todo/lists/${listId}/tasks/${taskId}`;
+    return (await this.client.api(endpoint).get()) as TodoTask;
+  }
+
+  async createTaskFromToDo(listId: string | undefined, toDo: TodoTask): Promise<TodoTask> {
+    const endpoint = `/me/todo/lists/${listId}/tasks`;
+    this.logger.debug('Creating task from endpoint', endpoint);
+    return this.client.api(endpoint).post(toDo);
+  }
+
+  async updateTaskFromToDo(listId: string | undefined, taskId: string, toDo: TodoTask): Promise<TodoTask> {
+    const endpoint = `/me/todo/lists/${listId}/tasks/${taskId}`;
+    return this.client.api(endpoint).patch(toDo);
+  }
 }
