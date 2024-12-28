@@ -6,98 +6,101 @@ import {MicrosoftAuthModal} from 'src/gui/microsoftAuthModal';
 import {t} from 'src/lib/lang';
 
 export class MicrosoftClientProvider {
-  private get clientId() {
-    return 'a1172059-5f55-45cd-9665-8dccc98c2587';
-  }
-
-  private get authority() {
-    return 'https://login.microsoftonline.com/consumers';
-  }
-
-  private readonly scopes: string[] = ['Tasks.ReadWrite', 'openid', 'profile'];
-  private readonly pca: msal.PublicClientApplication;
-  private readonly adapter: DataAdapter;
-  private readonly cachePath: string;
-
-  constructor(app: App) {
-    this.adapter = app.vault.adapter;
-    this.cachePath = `${app.vault.configDir}/Microsoft_cache.json`;
-
-    const beforeCacheAccess = async (cacheContext: msalCommon.TokenCacheContext) => {
-      if (await this.adapter.exists(this.cachePath)) {
-        cacheContext.tokenCache.deserialize(await this.adapter.read(this.cachePath));
-      }
-    };
-
-    const afterCacheAccess = async (cacheContext: msalCommon.TokenCacheContext) => {
-      if (cacheContext.cacheHasChanged) {
-        await this.adapter.write(this.cachePath, cacheContext.tokenCache.serialize());
-      }
-    };
-
-    const cachePlugin = {
-      beforeCacheAccess,
-      afterCacheAccess,
-    };
-    const config = {
-      auth: {
-        clientId: this.clientId,
-        authority: this.authority,
-      },
-      cache: {
-        cachePlugin,
-      },
-    };
-    this.pca = new msal.PublicClientApplication(config);
-  }
-
-  public async getClient() {
-    const authProvider = async (callback: (argument0: string, argument1: string) => void) => {
-      const accessToken = await this.getAccessToken();
-      const error = ' ';
-      callback(error, accessToken);
-    };
-
-    return Client.init({
-      authProvider,
-    });
-  }
-
-  private async getAccessToken() {
-    const msalCacheManager = this.pca.getTokenCache();
-    if (await this.adapter.exists(this.cachePath)) {
-      msalCacheManager.deserialize(await this.adapter.read(this.cachePath));
+    private get clientId() {
+        return 'a1172059-5f55-45cd-9665-8dccc98c2587';
     }
 
-    const accounts = await msalCacheManager.getAllAccounts();
-    if (accounts.length === 0) {
-      return this.authByDevice();
+    private get authority() {
+        return 'https://login.microsoftonline.com/consumers';
     }
 
-    return this.authByCache(accounts[0]);
-  }
+    private readonly scopes: string[] = ['Tasks.ReadWrite', 'openid', 'profile'];
+    private readonly pca: msal.PublicClientApplication;
+    private readonly adapter: DataAdapter;
+    private readonly app: App;
+    private readonly cachePath: string;
 
-  private async authByDevice(): Promise<string> {
-    const deviceCodeRequest = {
-      async deviceCodeCallback(response: msalCommon.DeviceCodeResponse) {
-        const notice = new Notice(t('Notice_DeviceCodeOnClipboard'));
-        await navigator.clipboard.writeText(response.userCode);
-        new MicrosoftAuthModal(response.userCode, response.verificationUri).open();
-        console.log(t('Notice_DeviceCodeCopiedToClipboard'), response.userCode);
-      },
-      scopes: this.scopes,
-    };
-    return this.pca.acquireTokenByDeviceCode(deviceCodeRequest).then(request => request === null ? 'error' : request.accessToken);
-  }
+    constructor(app: App) {
+        this.adapter = app.vault.adapter;
+        this.cachePath = `${app.vault.configDir}/Microsoft_cache.json`;
+        this.app = app;
 
-  private async authByCache(account: msal.AccountInfo): Promise<string> {
-    const silentRequest = {
-      account,
-      scopes: this.scopes,
-    };
-    return this.pca
-      .acquireTokenSilent(silentRequest)
-      .then(request => request === null ? 'error' : request.accessToken)
-      .catch(async () => this.authByDevice());
-  }
+        const beforeCacheAccess = async (cacheContext: msalCommon.TokenCacheContext) => {
+            if (await this.adapter.exists(this.cachePath)) {
+                cacheContext.tokenCache.deserialize(await this.adapter.read(this.cachePath));
+            }
+        };
+
+        const afterCacheAccess = async (cacheContext: msalCommon.TokenCacheContext) => {
+            if (cacheContext.cacheHasChanged) {
+                await this.adapter.write(this.cachePath, cacheContext.tokenCache.serialize());
+            }
+        };
+
+        const cachePlugin = {
+            beforeCacheAccess,
+            afterCacheAccess,
+        };
+        const config = {
+            auth: {
+                clientId: this.clientId,
+                authority: this.authority,
+            },
+            cache: {
+                cachePlugin,
+            },
+        };
+        this.pca = new msal.PublicClientApplication(config);
+    }
+
+    public async getClient() {
+        const authProvider = async (callback: (argument0: string, argument1: string) => void) => {
+            const accessToken = await this.getAccessToken();
+            const error = ' ';
+            callback(error, accessToken);
+        };
+
+        return Client.init({
+            authProvider,
+        });
+    }
+
+    private async getAccessToken() {
+        const msalCacheManager = this.pca.getTokenCache();
+        if (await this.adapter.exists(this.cachePath)) {
+            msalCacheManager.deserialize(await this.adapter.read(this.cachePath));
+        }
+
+        const accounts = await msalCacheManager.getAllAccounts();
+        if (accounts.length === 0) {
+            return this.authByDevice();
+        }
+
+        return this.authByCache(accounts[0]);
+    }
+
+    private async authByDevice(): Promise<string> {
+        const app = this.app;
+        const deviceCodeRequest = {
+            async deviceCodeCallback(response: msalCommon.DeviceCodeResponse) {
+                const notice = new Notice(t('Notice_DeviceCodeOnClipboard'));
+                await navigator.clipboard.writeText(response.userCode);
+                new MicrosoftAuthModal(app, response.userCode, response.verificationUri).open();
+                console.log(t('Notice_DeviceCodeCopiedToClipboard'), response.userCode);
+            },
+            scopes: this.scopes,
+        };
+        return this.pca.acquireTokenByDeviceCode(deviceCodeRequest).then(request => request === null ? 'error' : request.accessToken);
+    }
+
+    private async authByCache(account: msal.AccountInfo): Promise<string> {
+        const silentRequest = {
+            account,
+            scopes: this.scopes,
+        };
+        return this.pca
+            .acquireTokenSilent(silentRequest)
+            .then(request => request === null ? 'error' : request.accessToken)
+            .catch(async () => this.authByDevice());
+    }
 }
