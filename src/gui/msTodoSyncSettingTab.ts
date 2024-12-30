@@ -1,3 +1,4 @@
+/* eslint-disable max-params */
 import {
     type App, Notice, PluginSettingTab, Setting,
 } from 'obsidian';
@@ -280,22 +281,20 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
         new Setting(containerEl).setName(t('Settings_JournalFormatting_PeriodicNotes')).addToggle(toggle =>
             toggle.setValue(this.settings.diary.stayWithPN).onChange(async value => {
                 if (value) {
-                    // @ts-ignore
-                    const PNsetting
-						// @ts-ignore
-						= app.plugins.plugins['periodic-notes'];
-                    if (PNsetting) {
-                        const {format, folder} = PNsetting.settings.daily;
+                    const periodicNotesSettings // eslint-disable-line @typescript-eslint/no-unsafe-assignment
+                        = (this.app as any).plugins.plugins['periodic-notes'];
+                    if (periodicNotesSettings) {
+                        const {format, folder} = periodicNotesSettings.settings.daily; // eslint-disable-line @typescript-eslint/no-unsafe-assignment
                         this.settings.diary = {
-                            format,
-                            folder,
+                            format, // eslint-disable-line @typescript-eslint/no-unsafe-assignment
+                            folder, // eslint-disable-line @typescript-eslint/no-unsafe-assignment
                             stayWithPN: true,
                         };
                         console.log('🚀 ~ this.settings.diary', this.settings.diary);
                         await this.plugin.saveSettings();
                         this.display();
                     } else {
-                        new Notice('Periodic Notes 中未设置');
+                        const periodicNotesNotice = new Notice('Periodic Notes 中未设置');
                         this.display();
                     }
                 } else {
@@ -369,23 +368,24 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
     async hide() {
         const listName = this.settings.todoListSync.listName;
 
-        if (this.settings.todoListSync.listId != undefined || !listName) {
+        if (this.settings.todoListSync.listId !== undefined || !listName) {
             if (!listName) {
-                new Notice('微软同步列表未设置');
+                const noListNotice = new Notice(t('General_NoListNameSet'));
             }
         } else {
             let listId = await this.plugin.todoApi.getListIdByName(listName);
-            listId ||= (await this.plugin.todoApi.createTaskList(listName))?.id;
+            const createdTaskList = await this.plugin.todoApi.createTaskList(listName);
+            listId ||= createdTaskList?.id;
 
             if (listId) {
                 this.settings.todoListSync = {
                     listName,
                     listId,
                 };
-                new Notice('设置同步列表成功√');
+                const listSetNotice = new Notice(t('General_ListNameSet'));
                 await this.plugin.saveSettings();
             } else {
-                new Notice('创建列表失败');
+                const listFiledNotice = new Notice(t('General_FailedToCreateList'));
             }
         }
     }
