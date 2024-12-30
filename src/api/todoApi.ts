@@ -1,6 +1,5 @@
 import {type Client} from '@microsoft/microsoft-graph-client';
 import {type TodoTask, type TodoTaskList} from '@microsoft/microsoft-graph-types';
-import {Notice} from 'obsidian';
 import {t} from '../lib/lang.js';
 import {logging} from '../lib/logging.js';
 import {type MicrosoftClientProvider} from './microsoftClientProvider.js';
@@ -40,8 +39,7 @@ export class TodoApi {
                     if (error instanceof Error) {
                         this.logger.error(error.message);
                         this.logger.error(error.stack ?? 'No stack trace available');
-                        const raisedError = new Error(error.message);
-                        throw raisedError;
+                        throw new Error(error.message);
                     }
 
                     throw new Error('Unknown issue getting Lists');
