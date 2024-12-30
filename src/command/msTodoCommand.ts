@@ -98,7 +98,7 @@ export async function postTask(
         return;
     }
 
-    const notice = new Notice(t('CommandNotice_CreatingToDo'), 3000);
+    const notice = new Notice(t('CommandNotice_UpdatingToDo'), 3000);
     const activeFile = plugin.app.workspace.getActiveFile();
     if (activeFile === null) {
         return;

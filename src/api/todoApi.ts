@@ -1,20 +1,20 @@
 import {type Client} from '@microsoft/microsoft-graph-client';
 import {type TodoTask, type TodoTaskList} from '@microsoft/microsoft-graph-types';
-import {type App, Notice} from 'obsidian';
+import {Notice} from 'obsidian';
 import {t} from '../lib/lang.js';
-import {log, logging} from '../lib/logging.js';
-import {MicrosoftClientProvider} from './microsoftClientProvider.js';
+import {logging} from '../lib/logging.js';
+import {type MicrosoftClientProvider} from './microsoftClientProvider.js';
 
 export class TodoApi {
     private readonly logger = logging.getLogger('mstodo-sync.TodoApi');
 
     private client: Client;
 
-    constructor(app: App) {
-        new MicrosoftClientProvider(app).getClient().then(client => {
+    constructor(clientProvider: MicrosoftClientProvider) {
+        clientProvider.getClient().then(client => {
             this.client = client;
         }).catch(() => {
-            const notice = new Notice(t('Notice_UnableToAcquireClient'));
+            throw new Error(t('Notice_UnableToAcquireClient'));
         });
     }
 
@@ -29,11 +29,23 @@ export class TodoApi {
         const todoLists = (await this.client.api(endpoint).get()).value as TodoTaskList[];
         return Promise.all(
             todoLists.map(async taskList => {
-                const containedTasks = await this.getListTasks(taskList.id, searchPattern);
-                return {
-                    ...taskList,
-                    tasks: containedTasks,
-                };
+                try {
+                    const containedTasks = await this.getListTasks(taskList.id, searchPattern);
+                    return {
+                        ...taskList,
+                        tasks: containedTasks,
+                    };
+                } catch (error) {
+                    this.logger.error('Failed to get tasks for list', taskList.displayName);
+                    if (error instanceof Error) {
+                        this.logger.error(error.message);
+                        this.logger.error(error.stack ?? 'No stack trace available');
+                        const raisedError = new Error(error.message);
+                        throw raisedError;
+                    }
+
+                    throw new Error('Unknown issue getting Lists');
+                }
             }),
         );
     }
@@ -115,7 +127,7 @@ export class TodoApi {
             .filter(searchText)
             .get()
             .catch(error => {
-                new Notice(t('Notice_UnableToAcquireTaskFromConfiguredList'));
+                throw new Error(t('Notice_UnableToAcquireTaskFromConfiguredList'));
             });
         if (!res) {
             return;

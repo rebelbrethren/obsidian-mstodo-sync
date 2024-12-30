@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/parameter-properties */
 import {
     type AttachmentBase,
     type AttachmentSession,
@@ -18,6 +17,10 @@ import {t} from '../lib/lang.js';
 import {logging} from '../lib/logging.js';
 import {IMPORTANCE_REGEX, STATUS_SYMBOL_REGEX, TASK_REGEX} from '../constants.js';
 
+/**
+ * Represents a task in Obsidian that can be synchronized with Microsoft To Do.
+ * Implements the TodoTask interface.
+ */
 export class ObsidianTodoTask implements TodoTask {
     id: string;
 
@@ -34,7 +37,9 @@ export class ObsidianTodoTask implements TodoTask {
 	 * that the user has defined.
 	 */
     public categories?: NullableOption<string[]>;
-    // The date and time in the specified time zone that the task was finished.
+    /**
+     * The date and time in the specified time zone that the task was finished.
+     */
     public completedDateTime?: NullableOption<DateTimeTimeZone>;
     /**
 	 * The date and time when the task was created. By default, it is in UTC. You can provide a custom time zone in the
@@ -43,47 +48,115 @@ export class ObsidianTodoTask implements TodoTask {
 	 */
     public createdDateTime?: string;
     // The date and time in the specified time zone that the task is to be finished.
+
+    /**
+     * The date and time in the specified time zone that the task is to be finished.
+     */
     public dueDateTime?: NullableOption<DateTimeTimeZone>;
+
+    /**
+     * Indicates whether the task has attachments.
+     */
     public hasAttachments?: NullableOption<boolean>;
-    // The importance of the task. Possible values are: low, normal, high.
+
+    /**
+     * The importance of the task. Possible values are: low, normal, high.
+     */
     public importance?: Importance;
-    // Set to true if an alert is set to remind the user of the task.
+
+    /**
+     * Set to true if an alert is set to remind the user of the task.
+     */
     public isReminderOn?: boolean;
+
     /**
 	 * The date and time when the task was last modified. By default, it is in UTC. You can provide a custom time zone in the
 	 * request header. The property value uses ISO 8601 format and is always in UTC time. For example, midnight UTC on Jan 1,
 	 * 2020 would look like this: '2020-01-01T00:00:00Z'.
 	 */
     public lastModifiedDateTime?: string;
-    // The recurrence pattern for the task.
+
+    /**
+     * The recurrence pattern for the task.
+     */
     public recurrence?: NullableOption<PatternedRecurrence>;
-    // The date and time in the specified time zone for a reminder alert of the task to occur.
+
+    /**
+     * The date and time in the specified time zone for a reminder alert of the task to occur.
+     */
     public reminderDateTime?: NullableOption<DateTimeTimeZone>;
+
+    /**
+     * The date and time in the specified time zone that the task is to start.
+     */
     public startDateTime?: NullableOption<DateTimeTimeZone>;
+
     /**
 	 * Indicates the state or progress of the task. Possible values are: notStarted, inProgress, completed, waitingOnOthers,
 	 * deferred.
 	 */
     public status?: TaskStatus;
-    // A brief description of the task.
+    /**
+     * A brief description of the task.
+     */
     public title?: NullableOption<string>;
+
+    /**
+     * A collection of attachments linked to the task.
+     */
     public attachments?: NullableOption<AttachmentBase[]>;
+
+    /**
+     * A collection of attachment sessions linked to the task.
+     */
     public attachmentSessions?: NullableOption<AttachmentSession[]>;
-    // A collection of checklistItems linked to a task.
+
+    /**
+     * A collection of checklist items linked to the task.
+     */
     public checklistItems?: NullableOption<ChecklistItem[]>;
-    // The collection of open extensions defined for the task. Nullable.
+
+    /**
+     * The collection of open extensions defined for the task. Nullable.
+     */
     public extensions?: NullableOption<Extension[]>;
-    // A collection of resources linked to the task.
+
+    /**
+     * A collection of resources linked to the task.
+     */
     public linkedResources?: NullableOption<LinkedResource[]>;
 
+    /**
+     * The block link associated with the task.
+     */
     public blockLink?: string;
+
+    /**
+     * The name of the file where the task is located.
+     */
     public fileName?: string;
 
+    /**
+     * Logger instance for logging task-related information.
+     */
     private readonly logger = logging.getLogger('mstodo-sync.ObsidianTodoTask');
 
+    /**
+     * Manager for handling settings related to the task.
+     */
     private readonly settingsManager: ISettingsManager;
+
+    /**
+     * The original title of the task.
+     */
     private readonly originalTitle: string;
 
+    /**
+     * Creates an instance of ObsidianTodoTask.
+     * @param settingsManager - The settings manager instance.
+     * @param line - The line of text representing the task.
+     * @param fileName - The name of the file where the task is located.
+     */
     constructor(settingsManager: ISettingsManager, line: string, fileName: string) {
         this.settingsManager = settingsManager;
         this.fileName = fileName;
@@ -145,6 +218,11 @@ export class ObsidianTodoTask implements TodoTask {
         this.settingsManager.saveSettings();
     }
 
+    /**
+     * Get the task as a TodoTask object.
+     * @param withChecklist - Whether to include checklist items in the returned task.
+     * @returns The task as a TodoTask object.
+     */
     public getTodoTask(withChecklist = false): TodoTask {
         const toDo: TodoTask = {
             title: this.title,
@@ -173,6 +251,10 @@ export class ObsidianTodoTask implements TodoTask {
         return toDo;
     }
 
+    /**
+     * Set the body content of the task.
+     * @param body - The body content to set.
+     */
     public setBody(body: string) {
         this.body = {
             content: body,
@@ -180,6 +262,10 @@ export class ObsidianTodoTask implements TodoTask {
         };
     }
 
+    /**
+     * Add a checklist item to the task.
+     * @param item - The checklist item to add.
+     */
     public addChecklistItem(item: string) {
         this.checklistItems ||= [];
 
@@ -243,6 +329,10 @@ export class ObsidianTodoTask implements TodoTask {
         return output;
     }
 
+    /**
+     * Check the task title for a status indicator and update the status accordingly.
+     * @param line - The line of text representing the task.
+     */
     private checkForStatus(line: string) {
         const regex = /\[(.)]/;
 
@@ -255,6 +345,10 @@ export class ObsidianTodoTask implements TodoTask {
         }
     }
 
+    /**
+     * Check the task title for an importance indicator and update the importance accordingly.
+     * @param line - The line of text representing the task.
+     */
     private checkForImportance(line: string) {
         this.importance = 'normal';
 
@@ -267,6 +361,10 @@ export class ObsidianTodoTask implements TodoTask {
         }
     }
 
+    /**
+     * Get the priority indicator based on the task's importance.
+     * @returns The priority indicator as a string.
+     */
     private getPriorityIndicator(): string {
         switch (this.importance) {
             case 'normal': {
@@ -287,6 +385,10 @@ export class ObsidianTodoTask implements TodoTask {
         }
     }
 
+    /**
+     * Get the status indicator based on the task's status.
+     * @returns The status indicator as a string.
+     */
     private getStatusIndicator(): string {
         switch (this.status) {
             case 'notStarted': {
@@ -307,6 +409,10 @@ export class ObsidianTodoTask implements TodoTask {
         }
     }
 
+    /**
+     * Check the task title for a block link and update the block link and ID accordingly.
+     * @param line - The line of text representing the task.
+     */
     private checkForBlockLink(line: string) {
         const blockLinkRegex = /\^(?!.*\^)([A-Za-z\d]+)/gm;
         const blockLinkMatch = blockLinkRegex.exec(line);
@@ -323,10 +429,18 @@ export class ObsidianTodoTask implements TodoTask {
         }
     }
 
+    /**
+     * Get the clean title of the task, without any block links or status indicators.
+     * @returns The clean title as a string.
+     */
     public get cleanTitle(): string {
         return '';
     }
 
+    /**
+     * Check if the task has a block link.
+     * @returns True if the task has a block link, false otherwise.
+     */
     public get hasBlockLink(): boolean {
         return this.blockLink !== undefined && this.blockLink.length > 0;
     }
