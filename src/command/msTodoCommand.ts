@@ -1,6 +1,6 @@
 /* eslint-disable max-params */
 import {type Editor, type EditorPosition, Notice} from 'obsidian';
-import {ObsidianTodoTask} from 'src/model/ObsidianTodoTask';
+import {ObsidianTodoTask} from 'src/model/ObsidianTodoTask.js';
 import type MsTodoSync from '../main.js';
 import {type TodoApi} from '../api/todoApi.js';
 import {type IMsTodoSyncSettings} from '../gui/msTodoSyncSettingTab.js';
@@ -38,7 +38,10 @@ interface ISelection {
 export async function getCurrentLinesFromEditor(editor: Editor): Promise<ISelection> {
     log(
         'info',
-        `from: ${editor.getCursor('from')}, to: ${editor.getCursor('to')}, anchor: ${editor.getCursor('anchor')}, head: ${editor.getCursor('head')}, general: ${editor.getCursor()}`,
+        'Getting current lines from editor',
+        {
+            from: editor.getCursor('from'), to: editor.getCursor('to'), anchor: editor.getCursor('anchor'), head: editor.getCursor('head'), general: editor.getCursor(),
+        },
     );
 
     // Const activeFile = this.app.workspace.getActiveFile();
@@ -89,20 +92,17 @@ export async function postTask(
 ) {
     const logger = logging.getLogger('mstodo-sync.command.post');
 
-    // If (!editor.somethingSelected()) {
-    // 	new Notice(t('CommandNotice_NothingSelected'));
-    // 	return;
-    // }
     if (!listId) {
         const notice = new Notice(t('CommandNotice_SetListName'));
         return;
     }
 
-    const notice = new Notice(t('CommandNotice_UpdatingToDo'), 3000);
     const activeFile = plugin.app.workspace.getActiveFile();
     if (activeFile === null) {
         return;
     }
+
+    const notice = new Notice(t('CommandNotice_UpdatingToDo'), 3000);
 
     const source = await plugin.app.vault.read(activeFile);
     const {lines} = await getCurrentLinesFromEditor(editor);
@@ -110,15 +110,19 @@ export async function postTask(
     const split = source.split('\n');
     const modifiedPage = await Promise.all(
         split.map(async (line: string, index: number) => {
+            // If the line is not in the selection, return the line as is.
             if (!lines.includes(index)) {
                 return line;
             }
 
+            // Create the to do task from the line that is in the selection.
             const todo = new ObsidianTodoTask(plugin.settingsManager, line, fileName ?? '');
 
             // If there is a block link in the line, we will try to find
             // the task id from the block link and update the task instead.
-            if (todo.hasBlockLink && todo.id) {
+            // As a user can add a block link, not all tasks will be able to
+            // lookup a id from the internal cache.
+            if (todo.hasBlockLink && todo.hasId) {
                 logger.debug(`Updating Task: ${todo.title}`);
 
                 const returnedTask = await todoApi.updateTaskFromToDo(listId, todo.id, todo.getTodoTask());
@@ -135,6 +139,7 @@ export async function postTask(
                 logger.debug(`blockLink: ${todo.blockLink}, taskId: ${todo.id}`, todo);
             }
 
+            // If false there will be a orphaned block id for this task.
             if (replace) {
                 return todo.getMarkdownTask(true);
             }

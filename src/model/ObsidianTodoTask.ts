@@ -1,3 +1,4 @@
+/* eslint-disable unicorn/filename-case */
 import {
     type AttachmentBase,
     type AttachmentSession,
@@ -132,19 +133,9 @@ export class ObsidianTodoTask implements TodoTask {
     public blockLink?: string;
 
     /**
-     * The name of the file where the task is located.
-     */
-    public fileName?: string;
-
-    /**
      * Logger instance for logging task-related information.
      */
     private readonly logger = logging.getLogger('mstodo-sync.ObsidianTodoTask');
-
-    /**
-     * Manager for handling settings related to the task.
-     */
-    private readonly settingsManager: ISettingsManager;
 
     /**
      * The original title of the task.
@@ -157,12 +148,9 @@ export class ObsidianTodoTask implements TodoTask {
      * @param line - The line of text representing the task.
      * @param fileName - The name of the file where the task is located.
      */
-    constructor(settingsManager: ISettingsManager, line: string, fileName: string) {
-        this.settingsManager = settingsManager;
-        this.fileName = fileName;
+    constructor(private readonly settingsManager: ISettingsManager, line: string, public fileName: string) {
         this.originalTitle = line;
-
-        this.logger.debug(`Creating: '${this.title}'`);
+        this.logger.debug(`Creating: '${this.originalTitle}'`);
 
         this.title = line.trim();
 
@@ -206,7 +194,7 @@ export class ObsidianTodoTask implements TodoTask {
     public async cacheTaskId(id: string): Promise<void> {
         this.settingsManager.settings.taskIdIndex += 1;
 
-        const index = `${Math.random().toString(20).slice(2, 6)}${this.settingsManager.settings.taskIdIndex
+        const index = `MSTD${Math.random().toString(20).slice(2, 6)}${this.settingsManager.settings.taskIdIndex
             .toString()
             .padStart(5, '0')}`;
         this.logger.debug(`id: ${id}, index: ${index}, taskIdIndex: ${this.settingsManager.settings.taskIdIndex}`);
@@ -288,7 +276,7 @@ export class ObsidianTodoTask implements TodoTask {
 
         // Format and display the task which is the first line.
         const format = this.settingsManager.settings.displayOptions_ReplacementFormat;
-        const priorityIndicator = this.getPriorityIndicator();
+        const priorityIndicator = this.importance === 'normal' ? '' : this.getPriorityIndicator();
 
         output = format
             .replace(TASK_REGEX, this.title?.trim() ?? '')
@@ -308,7 +296,7 @@ export class ObsidianTodoTask implements TodoTask {
 
         // Add in the body if it exists and indented by two spaces.
         if (this.body?.content && this.body.content.length > 0) {
-            for (const bodyLine of this.body?.content.split('\n')) {
+            for (const bodyLine of this.body?.content.split('\n')) { // eslint-disable-line no-unsafe-optional-chaining
                 if (bodyLine.trim().length > 0) {
                     formattedBody += '  ' + bodyLine + '\n';
                 }
@@ -443,5 +431,13 @@ export class ObsidianTodoTask implements TodoTask {
      */
     public get hasBlockLink(): boolean {
         return this.blockLink !== undefined && this.blockLink.length > 0;
+    }
+
+    /**
+     * Check if the task has an id for the remote task.
+     * @returns True if the task has a id set, false otherwise.
+     */
+    public get hasId(): boolean {
+        return this.id !== undefined && this.id.length > 0;
     }
 }

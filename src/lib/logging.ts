@@ -14,38 +14,38 @@ import {EventEmitter2} from 'eventemitter2';
  * All possible log levels
  * @public
  */
-export type ILogLevel = {
-  1: 'trace';
-  2: 'debug';
-  3: 'info';
-  4: 'warn';
-  5: 'error';
-};
+export interface ILogLevel {
+    1: 'trace';
+    2: 'debug';
+    3: 'info';
+    4: 'warn';
+    5: 'error';
+}
 
 /**
  * Logger class to handle consistency of logs across the plugin.
  *
  * @export
- * @interface LogEntry
+ * @interface ILogEntry
  */
-export type LogEntry = {
-  traceId?: string;
-  level: string;
-  module: string;
-  location?: string;
-  message: string;
-  objects: any;
-};
+export interface ILogEntry {
+    traceId?: string;
+    level: string;
+    module: string;
+    location?: string;
+    message: string;
+    objects: any;
+}
 
 /**
  * Logging options structure.
  *
  * @export
- * @interface LogOptions
+ * @interface ILogOptions
  */
-export type LogOptions = {
-  minLevels: Record<string, string>;
-};
+export interface ILogOptions {
+    minLevels: Record<string, string>;
+}
 
 /**
  * Log level IDs (1 - 5)
@@ -67,125 +67,125 @@ export type TLogLevelName = ILogLevel[TLogLevelId];
  * @extends {EventEmitter2}
  */
 export class LogManager extends EventEmitter2 {
-  private options: LogOptions = {
-    minLevels: {
-      '': 'debug',
-      'mstodo-sync': 'debug',
-    },
-  };
+    private options: ILogOptions = {
+        minLevels: {
+            '': 'debug',
+            'mstodo-sync': 'debug',
+        },
+    };
 
-  // Prevent the console logger from being added twice
-  private consoleLoggerRegistered = false;
+    // Prevent the console logger from being added twice
+    private consoleLoggerRegistered = false;
 
-  /**
-	 * Set the minimum log levels for the module name or global.
-	 *
-	 * @param {LogOptions} options
-	 * @return {*}  {LogManager}
-	 * @memberof LogManager
-	 */
-  public configure(options: LogOptions): this {
-    this.options = Object.assign({}, this.options, options);
-    return this;
-  }
-
-  /**
-	 * Returns a logger instance for the given module name.
-	 *
-	 * @param {string} module
-	 * @return {*}  {Logger}
-	 * @memberof LogManager
-	 */
-  public getLogger(moduleName: string): Logger {
-    let currentMinimumLevel = 'none';
-    let match = '';
-
-    for (const key in this.options.minLevels) {
-      if (moduleName.startsWith(key) && key.length >= match.length) {
-        currentMinimumLevel = this.options.minLevels[key];
-        match = key;
-      }
+    /**
+     * Set the minimum log levels for the module name or global.
+     *
+     * @param {ILogOptions} options
+     * @return {*}  {LogManager}
+     * @memberof LogManager
+     */
+    public configure(options: ILogOptions): this {
+        this.options = Object.assign({}, this.options, options);
+        return this;
     }
 
-    return new Logger(this, moduleName, currentMinimumLevel);
-  }
+    /**
+     * Returns a logger instance for the given module name.
+     *
+     * @param {string} module
+     * @return {*}  {Logger}
+     * @memberof LogManager
+     */
+    public getLogger(moduleName: string): Logger {
+        let currentMinimumLevel = 'none';
+        let match = '';
 
-  /**
-	 *
-	 *
-	 * @param {(logEntry: LogEntry) => void} listener
-	 * @return {*}  {LogManager}
-	 * @memberof LogManager
-	 */
-  public onLogEntry(listener: (logEntry: LogEntry) => void): this {
-    this.on('log', listener);
-    return this;
-  }
+        for (const key in this.options.minLevels) {
+            if (moduleName.startsWith(key) && key.length >= match.length) {
+                currentMinimumLevel = this.options.minLevels[key];
+                match = key;
+            }
+        }
 
-  // Private period: number = 0;
-  arrAvg = (array: number[]) => array.reduce((a, b) => a + b, 0) / array.length;
-
-  /**
-	 * Registers a logger that write to the console.
-	 *
-	 * @return {*}  {LogManager}
-	 * @memberof LogManager
-	 */
-  public registerConsoleLogger(): this {
-    if (this.consoleLoggerRegistered) {
-      return this;
+        return new Logger(this, moduleName, currentMinimumLevel);
     }
 
-    this.onLogEntry(logEntry => {
-      // 2024-12-19T22:53:37.000Z - >'2024-12-19 22:53:37'
-      const messageDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    /**
+     *
+     *
+     * @param {(logEntry: ILogEntry) => void} listener
+     * @return {*}  {LogManager}
+     * @memberof LogManager
+     */
+    public onLogEntry(listener: (logEntry: ILogEntry) => void): this {
+        this.on('log', listener);
+        return this;
+    }
 
-      let message = `[${messageDate}][${logEntry.level}][${logEntry.module}]`;
+    // Private period: number = 0;
+    arrAvg = (array: number[]) => array.reduce((a, b) => a + b, 0) / array.length;
 
-      if (logEntry.traceId) {
-        message += `[${logEntry.traceId}]`;
-      }
-
-      message += ` ${logEntry.message}`;
-      if (logEntry.objects === undefined) {
-        logEntry.objects = '';
-      }
-
-      switch (logEntry.level) {
-        case 'trace': {
-          console.trace(message, logEntry.objects);
-          break;
+    /**
+     * Registers a logger that write to the console.
+     *
+     * @return {*}  {LogManager}
+     * @memberof LogManager
+     */
+    public registerConsoleLogger(): this {
+        if (this.consoleLoggerRegistered) {
+            return this;
         }
 
-        case 'debug': {
-          console.debug(message, logEntry.objects);
-          break;
-        }
+        this.onLogEntry(logEntry => {
+            // 2024-12-19T22:53:37.000Z - >'2024-12-19 22:53:37'
+            const messageDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-        case 'info': {
-          console.info(message, logEntry.objects);
-          break;
-        }
+            let message = `[${messageDate}][${logEntry.level}][${logEntry.module}]`;
 
-        case 'warn': {
-          console.warn(message, logEntry.objects);
-          break;
-        }
+            if (logEntry.traceId) {
+                message += `[${logEntry.traceId}]`;
+            }
 
-        case 'error': {
-          console.error(message, logEntry.objects);
-          break;
-        }
+            message += ` ${logEntry.message}`;
+            if (logEntry.objects === undefined) {
+                logEntry.objects = '';
+            }
 
-        default: {
-          console.log(`{${logEntry.level}} ${message}`, logEntry.objects);
-        }
-      }
-    });
+            switch (logEntry.level) {
+                case 'trace': {
+                    console.trace(message, logEntry.objects);
+                    break;
+                }
 
-    this.consoleLoggerRegistered = true;
-    return this;
-  }
+                case 'debug': {
+                    console.debug(message, logEntry.objects);
+                    break;
+                }
+
+                case 'info': {
+                    console.info(message, logEntry.objects);
+                    break;
+                }
+
+                case 'warn': {
+                    console.warn(message, logEntry.objects);
+                    break;
+                }
+
+                case 'error': {
+                    console.error(message, logEntry.objects);
+                    break;
+                }
+
+                default: {
+                    console.log(`{${logEntry.level}} ${message}`, logEntry.objects);
+                }
+            }
+        });
+
+        this.consoleLoggerRegistered = true;
+        return this;
+    }
 }
 
 export const logging = new LogManager();
@@ -198,162 +198,158 @@ export const logging = new LogManager();
  * @class Logger
  */
 export class Logger {
-  private readonly logManager: EventEmitter2;
-  private readonly minLevel: number;
-  private readonly module: string;
-  private readonly levels: Record<string, number> = {
-    trace: 1,
-    debug: 2,
-    info: 3,
-    warn: 4,
-    error: 5,
-  };
-
-  /**
-	 * Creates an instance of Logger.
-	 * @param {EventEmitter2} logManager
-	 * @param {string} module
-	 * @param {string} minLevel
-	 * @memberof Logger
-	 */
-  constructor(logManager: EventEmitter2, module: string, minLevel: string) {
-    this.logManager = logManager;
-    this.module = module;
-    this.minLevel = this.levelToInt(minLevel);
-  }
-
-  /**
-	 * Converts a string level (trace/debug/info/warn/error) into a number
-	 *
-	 * @param minLevel
-	 */
-  private levelToInt(minLevel: string): number {
-    if (minLevel.toLowerCase() in this.levels) {
-      return this.levels[minLevel.toLowerCase()];
-    }
-
-    return 99;
-  }
-
-  /**
-	 * Central logging method.
-	 * @param logLevel
-	 * @param message
-	 */
-  public log(logLevel: string, message: string, objects?: any): void {
-    const level = this.levelToInt(logLevel);
-    if (level < this.minLevel) {
-      return;
-    }
-
-    const logEntry: LogEntry = {
-      level: logLevel,
-      module: this.module,
-      message,
-      objects,
-      traceId: undefined,
+    private readonly minLevel: number;
+    private readonly levels: Record<string, number> = {
+        trace: 1,
+        debug: 2,
+        info: 3,
+        warn: 4,
+        error: 5,
     };
 
-    // Obtain the line/file through a thoroughly hacky method
-    // This creates a new stack trace and pulls the caller from it.  If the caller
-    // if .trace()
-    // const error = new Error('');
-    // if (error.stack) {
-    //     const cla = error.stack.split('\n');
-    //     let idx = 1;
-    //     while (idx < cla.length && cla[idx].includes('at Logger.Object.')) idx++;
-    //     if (idx < cla.length) {
-    //         logEntry.location = cla[idx].slice(cla[idx].indexOf('at ') + 3, cla[idx].length);
-    //     }
-    // }
-
-    this.logManager.emit('log', logEntry);
-  }
-
-  public trace(message: string, objects?: any): void {
-    this.log('trace', message, objects);
-  }
-
-  public debug(message: string, objects?: any): void {
-    this.log('debug', message, objects);
-  }
-
-  public info(message: string, objects?: any): void {
-    this.log('info', message, objects);
-  }
-
-  public warn(message: string, objects?: any): void {
-    this.log('warn', message, objects);
-  }
-
-  public error(message: string, objects?: any): void {
-    this.log('error', message, objects);
-  }
-
-  /**
-	 * Central logging method with a trace ID to track calls between modules/components.
-	 * @param logLevel
-	 * @param message
-	 */
-  public logWithId(logLevel: string, traceId: string, message: string, objects?: any): void {
-    const level = this.levelToInt(logLevel);
-    if (level < this.minLevel) {
-      return;
+    /**
+     * Creates an instance of Logger.
+     * @param {EventEmitter2} logManager
+     * @param {string} name
+     * @param {string} minLevel
+     * @memberof Logger
+     */
+    constructor(private readonly logManager: EventEmitter2, private readonly name: string, minLevel: string) {
+        this.minLevel = this.levelToInt(minLevel);
     }
 
-    const logEntry: LogEntry = {
-      level: logLevel,
-      module: this.module,
-      message,
-      objects,
-      traceId,
-    };
+    /**
+     * Central logging method.
+     * @param logLevel
+     * @param message
+     */
+    public log(logLevel: string, message: string, objects?: any): void {
+        const level = this.levelToInt(logLevel);
+        if (level < this.minLevel) {
+            return;
+        }
 
-    this.logManager.emit('log', logEntry);
-  }
+        const logEntry: ILogEntry = {
+            level: logLevel,
+            module: this.name,
+            message,
+            objects, // eslint-disable-line @typescript-eslint/no-unsafe-assignment
+            traceId: undefined,
+        };
 
-  public traceWithId(traceId: string, message: string, objects?: any): void {
-    this.logWithId('trace', traceId, message, objects);
-  }
+        // Obtain the line/file through a thoroughly hacky method
+        // This creates a new stack trace and pulls the caller from it.  If the caller
+        // if .trace()
+        // const error = new Error('');
+        // if (error.stack) {
+        //     const cla = error.stack.split('\n');
+        //     let idx = 1;
+        //     while (idx < cla.length && cla[idx].includes('at Logger.Object.')) idx++;
+        //     if (idx < cla.length) {
+        //         logEntry.location = cla[idx].slice(cla[idx].indexOf('at ') + 3, cla[idx].length);
+        //     }
+        // }
 
-  public debugWithId(traceId: string, message: string, objects?: any): void {
-    this.logWithId('debug', traceId, message, objects);
-  }
+        this.logManager.emit('log', logEntry);
+    }
 
-  public infoWithId(traceId: string, message: string, objects?: any): void {
-    this.logWithId('info', traceId, message, objects);
-  }
+    public trace(message: string, objects?: any): void {
+        this.log('trace', message, objects);
+    }
 
-  public warnWithId(traceId: string, message: string, objects?: any): void {
-    this.logWithId('warn', traceId, message, objects);
-  }
+    public debug(message: string, objects?: any): void {
+        this.log('debug', message, objects);
+    }
 
-  public errorWithId(traceId: string, message: string, objects?: any): void {
-    this.logWithId('error', traceId, message, objects);
-  }
+    public info(message: string, objects?: any): void {
+        this.log('info', message, objects);
+    }
+
+    public warn(message: string, objects?: any): void {
+        this.log('warn', message, objects);
+    }
+
+    public error(message: string, objects?: any): void {
+        this.log('error', message, objects);
+    }
+
+    /**
+     * Central logging method with a trace ID to track calls between modules/components.
+     * @param logLevel
+     * @param message
+     */
+    public logWithId(logLevel: string, traceId: string, message: string, objects?: any): void {
+        const level = this.levelToInt(logLevel);
+        if (level < this.minLevel) {
+            return;
+        }
+
+        const logEntry: ILogEntry = {
+            level: logLevel,
+            module: this.name,
+            message,
+            objects, // eslint-disable-line @typescript-eslint/no-unsafe-assignment
+            traceId,
+        };
+
+        this.logManager.emit('log', logEntry);
+    }
+
+    public traceWithId(traceId: string, message: string, objects?: any): void {
+        this.logWithId('trace', traceId, message, objects);
+    }
+
+    public debugWithId(traceId: string, message: string, objects?: any): void {
+        this.logWithId('debug', traceId, message, objects);
+    }
+
+    public infoWithId(traceId: string, message: string, objects?: any): void {
+        this.logWithId('info', traceId, message, objects);
+    }
+
+    public warnWithId(traceId: string, message: string, objects?: any): void {
+        this.logWithId('warn', traceId, message, objects);
+    }
+
+    public errorWithId(traceId: string, message: string, objects?: any): void {
+        this.logWithId('error', traceId, message, objects);
+    }
+
+    /**
+     * Converts a string level (trace/debug/info/warn/error) into a number
+     *
+     * @param minLevel
+     */
+    private levelToInt(minLevel: string): number {
+        if (minLevel.toLowerCase() in this.levels) {
+            return this.levels[minLevel.toLowerCase()];
+        }
+
+        return 99;
+    }
 }
 
 export function logCallDetails() {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
-    const originalMethod = descriptor.value;
-    const logger = logging.getLogger('mstodo-sync');
+    return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+        const originalMethod = descriptor.value; // eslint-disable-line @typescript-eslint/no-unsafe-assignment
+        const logger = logging.getLogger('mstodo-sync');
 
-    descriptor.value = async function (...arguments_: any[]) {
-      const startTime = new Date(Date.now());
-      const result = await originalMethod.apply(this, arguments_);
-      const endTime = new Date(Date.now());
-      const elapsed = endTime.getTime() - startTime.getTime();
+        descriptor.value = async function (...arguments_: any[]) {
+            const startTime = new Date(Date.now());
+            const result = await originalMethod.apply(this, arguments_); // eslint-disable-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+            const endTime = new Date(Date.now());
+            const elapsed = endTime.getTime() - startTime.getTime();
 
-      logger.debug(
-        `${typeof target}:${propertyKey} called with ${
-          arguments_.length
-        } arguments. Took: ${elapsed}ms ${JSON.stringify(arguments_)}`,
-      );
-      return result;
+            logger.debug(
+                `${typeof target}:${propertyKey} called with ${
+                    arguments_.length
+                } arguments. Took: ${elapsed}ms ${JSON.stringify(arguments_)}`,
+            );
+            return result; // eslint-disable-line @typescript-eslint/no-unsafe-return
+        };
+
+        return descriptor;
     };
-
-    return descriptor;
-  };
 }
 
 /**
@@ -363,39 +359,35 @@ export function logCallDetails() {
  * @param {TLogLevelName} logLevel
  * @param {string} message
  */
-export function log(logLevel: TLogLevelName, message: string) {
-  const logger = logging.getLogger('mstodo-sync');
+export function log(logLevel: TLogLevelName, message: string, objects?: any) {
+    const logger = logging.getLogger('mstodo-sync');
 
-  switch (logLevel) {
-    case 'trace': {
-      logger.trace(message);
-      break;
-    }
+    switch (logLevel) {
+        case 'trace': {
+            logger.trace(message, objects);
+            break;
+        }
 
-    case 'debug': {
-      logger.debug(message);
-      break;
-    }
+        case 'debug': {
+            logger.debug(message, objects);
+            break;
+        }
 
-    case 'info': {
-      logger.info(message);
-      break;
-    }
+        case 'info': {
+            logger.info(message, objects);
+            break;
+        }
 
-    case 'warn': {
-      logger.warn(message);
-      break;
-    }
+        case 'warn': {
+            logger.warn(message, objects);
+            break;
+        }
 
-    case 'error': {
-      logger.error(message);
-      break;
+        case 'error': {
+            logger.error(message, objects);
+            break;
+        }
     }
-
-    default: {
-      break;
-    }
-  }
 }
 
 /**
@@ -408,26 +400,26 @@ export function log(logLevel: TLogLevelName, message: string) {
  * @return {*}
  */
 export function monkeyPatchConsole(plugin: Plugin) {
-  if (!Platform.isMobile) {
-    return;
-  }
+    if (!Platform.isMobile) {
+        return;
+    }
 
-  const logFile = `${plugin.manifest.dir}/mstodo-sync-logs.txt`;
-  const logs: string[] = [];
-  const logMessages
-		= (prefix: string) =>
-		  (...messages: unknown[]) => {
-		    logs.push(`\n[${prefix}]`);
-		    for (const message of messages) {
-		      logs.push(String(message));
-		    }
+    const logFile = `${plugin.manifest.dir}/mstodo-sync-logs.txt`;
+    const logs: string[] = [];
+    const logMessages
+        = (prefix: string) =>
+            (...messages: unknown[]) => {
+                logs.push(`\n[${prefix}]`);
+                for (const message of messages) {
+                    logs.push(String(message));
+                }
 
-		    plugin.app.vault.adapter.write(logFile, logs.join(' '));
-		  };
+                plugin.app.vault.adapter.write(logFile, logs.join(' ')); // eslint-disable-line @typescript-eslint/no-floating-promises
+            };
 
-  console.debug = logMessages('debug');
-  console.error = logMessages('error');
-  console.info = logMessages('info');
-  console.log = logMessages('log');
-  console.warn = logMessages('warn');
+    console.debug = logMessages('debug');
+    console.error = logMessages('error');
+    console.info = logMessages('info');
+    console.log = logMessages('log');
+    console.warn = logMessages('warn');
 }

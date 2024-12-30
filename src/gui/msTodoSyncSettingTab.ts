@@ -4,7 +4,7 @@ import {
 } from 'obsidian';
 import type MsTodoSync from '../main.js';
 import {t} from '../lib/lang.js';
-import {type LogOptions} from '../lib/logging.js';
+import {type ILogOptions} from '../lib/logging.js';
 
 export interface IMsTodoSyncSettings {
     todoListSync: {
@@ -47,7 +47,7 @@ export interface IMsTodoSyncSettings {
     microsoft_AuthenticationAuthority: string;
 
     // Logging options.
-    loggingOptions: LogOptions;
+    loggingOptions: ILogOptions;
 
     // Private configuration updated by the plugin and not user.
     taskIdLookup: Record<string, string>;
