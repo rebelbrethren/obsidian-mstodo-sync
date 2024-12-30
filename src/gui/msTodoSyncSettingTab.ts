@@ -42,6 +42,9 @@ export interface IMsTodoSyncSettings {
     // Microsoft To Do open handler.
     todo_OpenUsingApplicationProtocol: boolean;
 
+    microsoft_AuthenticationClientId: string;
+    microsoft_AuthenticationAuthority: string;
+
     // Logging options.
     loggingOptions: LogOptions;
 
@@ -87,6 +90,8 @@ export const DEFAULT_SETTINGS: IMsTodoSyncSettings = {
     },
     taskIdLookup: {'0000ABCD': '0'},
     taskIdIndex: 0,
+    microsoft_AuthenticationClientId: '',
+    microsoft_AuthenticationAuthority: '',
 };
 
 export class MsTodoSyncSettingTab extends PluginSettingTab {
@@ -331,6 +336,34 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
                 }),
             )
             .setDisabled(this.settings.diary.stayWithPN);
+
+        // Authentication Overrides
+        containerEl.createEl('h2', {
+            text: t('Settings_Authentication_Heading'),
+        });
+        containerEl.createEl('p', {
+            text: t('Settings_Authentication_Heading_Description'),
+        });
+
+        this.addTextSetting(
+            containerEl,
+            'Settings_Authentication_ClientId',
+            'Settings_Authentication_ClientId_Description',
+            this.settings.microsoft_AuthenticationClientId,
+            async value => {
+                this.settings.microsoft_AuthenticationClientId = value;
+            },
+        );
+
+        this.addTextSetting(
+            containerEl,
+            'Settings_Authentication_ClientId',
+            'Settings_Authentication_ClientId_Description',
+            this.settings.microsoft_AuthenticationClientId,
+            async value => {
+                this.settings.microsoft_AuthenticationClientId = value;
+            },
+        );
     }
 
     async hide() {

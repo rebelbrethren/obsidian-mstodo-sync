@@ -6,16 +6,27 @@ import {MicrosoftAuthModal} from 'src/gui/microsoftAuthModal';
 import {t} from 'src/lib/lang';
 
 export class MicrosoftClientProvider {
-    private get clientId() {
-        return 'a1172059-5f55-45cd-9665-8dccc98c2587';
+    private _clientId: string;
+    private _authority: string;
+
+    public get clientId() {
+        return this._clientId;
     }
 
-    private get authority() {
-        return 'https://login.microsoftonline.com/consumers';
+    public set clientId(value: string) {
+        this._clientId = value;
+    }
+
+    public get authority() {
+        return this._authority;
+    }
+
+    public set authority(value: string) {
+        this._authority = value;
     }
 
     private readonly scopes: string[] = ['Tasks.ReadWrite', 'openid', 'profile'];
-    private readonly pca: msal.PublicClientApplication;
+    private pca: msal.PublicClientApplication;
     private readonly adapter: DataAdapter;
     private readonly app: App;
     private readonly cachePath: string;
@@ -25,6 +36,23 @@ export class MicrosoftClientProvider {
         this.cachePath = `${app.vault.configDir}/Microsoft_cache.json`;
         this.app = app;
 
+        this._clientId = 'a1172059-5f55-45cd-9665-8dccc98c2587';
+        this._authority = 'https://login.microsoftonline.com/consumers';
+    }
+
+    public async getClient() {
+        const authProvider = async (callback: (argument0: string, argument1: string) => void) => {
+            const accessToken = await this.getAccessToken();
+            const error = ' ';
+            callback(error, accessToken);
+        };
+
+        return Client.init({
+            authProvider,
+        });
+    }
+
+    public createPublicClientApplication() {
         const beforeCacheAccess = async (cacheContext: msalCommon.TokenCacheContext) => {
             if (await this.adapter.exists(this.cachePath)) {
                 cacheContext.tokenCache.deserialize(await this.adapter.read(this.cachePath));
@@ -51,18 +79,6 @@ export class MicrosoftClientProvider {
             },
         };
         this.pca = new msal.PublicClientApplication(config);
-    }
-
-    public async getClient() {
-        const authProvider = async (callback: (argument0: string, argument1: string) => void) => {
-            const accessToken = await this.getAccessToken();
-            const error = ' ';
-            callback(error, accessToken);
-        };
-
-        return Client.init({
-            authProvider,
-        });
     }
 
     private async getAccessToken() {

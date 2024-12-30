@@ -37,6 +37,15 @@ export default class MsTodoSync extends Plugin {
 
         try {
             this.microsoftClientProvider = new MicrosoftClientProvider(this.app);
+            if (this.settings.microsoft_AuthenticationClientId !== '') {
+                this.microsoftClientProvider.clientId = this.settings.microsoft_AuthenticationClientId;
+            }
+
+            if (this.settings.microsoft_AuthenticationAuthority !== '') {
+                this.microsoftClientProvider.authority = this.settings.microsoft_AuthenticationAuthority;
+            }
+
+            this.microsoftClientProvider.createPublicClientApplication();
         } catch (error) {
             if (error instanceof Error) {
                 const notice = new Notice(error.message);
