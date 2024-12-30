@@ -142,7 +142,7 @@ export default class MsTodoSync extends Plugin {
             this.app.workspace.on('editor-menu', (menu, editor, view) => {
                 menu.addItem(item => {
                     item.setTitle(t('EditorMenu_SyncToTodo')).onClick(
-                        async e => {
+                        async () => {
                             await this.pushTaskToMsTodo(editor);
                         },
                     );
@@ -156,7 +156,7 @@ export default class MsTodoSync extends Plugin {
             this.app.workspace.on('editor-menu', (menu, editor, view) => {
                 menu.addItem(item => {
                     item.setTitle(t('EditorMenu_SyncToTodoAndReplace')).onClick(
-                        async e => {
+                        async () => {
                             await this.pushTaskToMsTodoAndUpdatePage(editor);
                         },
                     );
