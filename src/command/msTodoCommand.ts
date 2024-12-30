@@ -1,5 +1,7 @@
 /* eslint-disable max-params */
-import {type Editor, type EditorPosition, Notice} from 'obsidian';
+import {
+    type DataAdapter, type Editor, type EditorPosition, Notice,
+} from 'obsidian';
 import {ObsidianTodoTask} from 'src/model/ObsidianTodoTask.js';
 import type MsTodoSync from '../main.js';
 import {type TodoApi} from '../api/todoApi.js';
@@ -209,6 +211,27 @@ export async function getTask(
     );
 
     await plugin.app.vault.modify(activeFile, modifiedPage.join('\n'));
+}
+
+export async function getTaskDelta(
+    todoApi: TodoApi,
+    listId: string | undefined,
+    editor: Editor,
+    fileName: string | undefined,
+    plugin: MsTodoSync,
+) {
+    const logger = logging.getLogger('mstodo-sync.command.delta');
+
+    if (!listId) {
+        const notice = new Notice(t('CommandNotice_SetListName'));
+        return;
+    }
+
+    const cachePath = `${this.app.vault.configDir}/tasks-delta.json`;
+    const adapter: DataAdapter = this.app.vault.adapter;
+    const returnedTask = await todoApi.getTasksDelta(listId);
+
+    await adapter.write(cachePath, JSON.stringify(returnedTask));
 }
 
 // Experimental

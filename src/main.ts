@@ -4,7 +4,7 @@ import {
 import {TodoApi} from './api/todoApi.js';
 import {DEFAULT_SETTINGS, MsTodoSyncSettingTab, type IMsTodoSyncSettings} from './gui/msTodoSyncSettingTab.js';
 import {
-    createTodayTasks, getTask, getTaskIdFromLine, postTask, postTaskAndChildren,
+    createTodayTasks, getTask, getTaskDelta, getTaskIdFromLine, postTask, postTaskAndChildren,
 } from './command/msTodoCommand.js';
 import {t} from './lib/lang.js';
 import {log, logging} from './lib/logging.js';
@@ -181,6 +181,26 @@ export default class MsTodoSync extends Plugin {
                 });
             }),
         );
+
+        if (this.settings.hackingEnabled) {
+            this.registerEvent(
+                this.app.workspace.on('editor-menu', (menu, editor, view) => {
+                    menu.addItem(item => {
+                        item.setTitle('hacking').onClick(
+                            async () => {
+                                await getTaskDelta(
+                                    this.todoApi,
+                                    this.settings.todoListSync?.listId,
+                                    editor,
+                                    this.app.workspace.getActiveFile()?.path,
+                                    this,
+                                );
+                            },
+                        );
+                    });
+                }),
+            );
+        }
 
         this.registerEvent(
             this.app.workspace.on('editor-menu', (menu, editor, view) => {

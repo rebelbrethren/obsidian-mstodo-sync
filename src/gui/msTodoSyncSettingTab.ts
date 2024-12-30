@@ -52,6 +52,7 @@ export interface IMsTodoSyncSettings {
     // Private configuration updated by the plugin and not user.
     taskIdLookup: Record<string, string>;
     taskIdIndex: number;
+    hackingEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: IMsTodoSyncSettings = {
@@ -93,6 +94,7 @@ export const DEFAULT_SETTINGS: IMsTodoSyncSettings = {
     taskIdIndex: 0,
     microsoft_AuthenticationClientId: '',
     microsoft_AuthenticationAuthority: '',
+    hackingEnabled: false,
 };
 
 export class MsTodoSyncSettingTab extends PluginSettingTab {

@@ -1,7 +1,6 @@
 import type * as msalCommon from '@azure/msal-common';
 import * as msal from '@azure/msal-node';
 import {type AuthenticationProvider, Client, type ClientOptions} from '@microsoft/microsoft-graph-client';
-import {AuthCodeMSALBrowserAuthenticationProvider, type AuthCodeMSALBrowserAuthenticationProviderOptions} from '@microsoft/microsoft-graph-client/authProviders/authCodeMsalBrowser';
 import {type App, type DataAdapter, Notice} from 'obsidian';
 import {MicrosoftAuthModal} from 'src/gui/microsoftAuthModal';
 import {t} from 'src/lib/lang';

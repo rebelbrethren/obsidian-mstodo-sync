@@ -158,6 +158,14 @@ export class TodoApi {
             .get()) as TodoTask;
     }
 
+    async getTasksDelta(listId: string): Promise<any> {
+        const endpoint = `/me/todo/lists/${listId}/tasks/delta`;
+        return (await this.client
+            .api(endpoint)
+            .middlewareOptions([new RetryHandlerOptions(3, 3)])
+            .get()) as TodoTask;
+    }
+
     /**
      * Creates a new task in the specified To-Do list.
      *
