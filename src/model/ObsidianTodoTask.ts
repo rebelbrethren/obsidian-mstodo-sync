@@ -240,6 +240,36 @@ export class ObsidianTodoTask implements TodoTask {
     }
 
     /**
+     * Get the task as a TodoTask object.
+     * @param withChecklist - Whether to include checklist items in the returned task.
+     * @returns The task as a TodoTask object.
+     */
+    public updateFromTodoTask(remoteTask: TodoTask) {
+        this.title = remoteTask.title;
+
+        if (remoteTask.body?.content && remoteTask.body.content.length > 0) {
+            this.body = remoteTask.body;
+        }
+
+        if (remoteTask.status && remoteTask.status.length > 0) {
+            this.status = remoteTask.status;
+        }
+
+        if (remoteTask.importance && remoteTask.importance.length > 0) {
+            this.importance = remoteTask.importance;
+        }
+
+        if (remoteTask.linkedResources && remoteTask.linkedResources.length > 0) {
+            this.linkedResources = remoteTask.linkedResources;
+        }
+
+        // Need to determine if we want to update the checklist items
+        // if (withChecklist && remoteTask.checklistItems && remoteTask.checklistItems.length > 0) {
+        //     this.checklistItems = remoteTask.checklistItems;
+        // }
+    }
+
+    /**
      * Set the body content of the task.
      * @param body - The body content to set.
      */

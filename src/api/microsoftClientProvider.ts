@@ -1,9 +1,26 @@
 import type * as msalCommon from '@azure/msal-common';
 import * as msal from '@azure/msal-node';
-import {Client} from '@microsoft/microsoft-graph-client';
+import {type AuthenticationProvider, Client, type ClientOptions} from '@microsoft/microsoft-graph-client';
+import {AuthCodeMSALBrowserAuthenticationProvider, type AuthCodeMSALBrowserAuthenticationProviderOptions} from '@microsoft/microsoft-graph-client/authProviders/authCodeMsalBrowser';
 import {type App, type DataAdapter, Notice} from 'obsidian';
 import {MicrosoftAuthModal} from 'src/gui/microsoftAuthModal';
 import {t} from 'src/lib/lang';
+
+class MsalNodeAuthenticationProvider implements AuthenticationProvider {
+    /**
+     *
+     */
+    constructor(private readonly clientProvider: MicrosoftClientProvider) {}
+
+    /**
+	 * This method will get called before every request to the msgraph server
+	 * This should return a Promise that resolves to an accessToken (in case of success) or rejects with error (in case of failure)
+	 * Basically this method will contain the implementation for getting and refreshing accessTokens
+	 */
+    public async getAccessToken(): Promise<string> {
+        return this.clientProvider.getAccessToken();
+    }
+}
 
 export class MicrosoftClientProvider {
     private _clientId: string;
@@ -30,6 +47,7 @@ export class MicrosoftClientProvider {
     private readonly adapter: DataAdapter;
     private readonly app: App;
     private readonly cachePath: string;
+    private accounts: msal.AccountInfo[] = [];
 
     constructor(app: App) {
         this.adapter = app.vault.adapter;
@@ -50,6 +68,16 @@ export class MicrosoftClientProvider {
         return Client.init({
             authProvider,
         });
+    }
+
+    public async getClientWithMiddleware() {
+        const clientOptions: ClientOptions = {
+            authProvider: new MsalNodeAuthenticationProvider(this),
+        };
+
+        const client = Client.initWithMiddleware(clientOptions);
+
+        return client;
     }
 
     public createPublicClientApplication() {
@@ -81,18 +109,18 @@ export class MicrosoftClientProvider {
         this.pca = new msal.PublicClientApplication(config);
     }
 
-    private async getAccessToken() {
+    public async getAccessToken() {
         const msalCacheManager = this.pca.getTokenCache();
         if (await this.adapter.exists(this.cachePath)) {
             msalCacheManager.deserialize(await this.adapter.read(this.cachePath));
         }
 
-        const accounts = await msalCacheManager.getAllAccounts();
-        if (accounts.length === 0) {
+        this.accounts = await msalCacheManager.getAllAccounts();
+        if (this.accounts.length === 0) {
             return this.authByDevice();
         }
 
-        return this.authByCache(accounts[0]);
+        return this.authByCache(this.accounts[0]);
     }
 
     private async authByDevice(): Promise<string> {

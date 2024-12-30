@@ -151,6 +151,66 @@ export async function postTask(
     await plugin.app.vault.modify(activeFile, modifiedPage.join('\n'));
 }
 
+export async function getTask(
+    todoApi: TodoApi,
+    listId: string | undefined,
+    editor: Editor,
+    fileName: string | undefined,
+    plugin: MsTodoSync,
+) {
+    const logger = logging.getLogger('mstodo-sync.command.get');
+
+    if (!listId) {
+        const notice = new Notice(t('CommandNotice_SetListName'));
+        return;
+    }
+
+    const activeFile = plugin.app.workspace.getActiveFile();
+    if (activeFile === null) {
+        return;
+    }
+
+    const notice = new Notice(t('CommandNotice_UpdatingToDo'), 3000);
+
+    const source = await plugin.app.vault.read(activeFile);
+    const {lines} = await getCurrentLinesFromEditor(editor);
+
+    const split = source.split('\n');
+    const modifiedPage = await Promise.all(
+        split.map(async (line: string, index: number) => {
+            // If the line is not in the selection, return the line as is.
+            if (!lines.includes(index)) {
+                return line;
+            }
+
+            // Create the to do task from the line that is in the selection.
+            const todo = new ObsidianTodoTask(plugin.settingsManager, line, fileName ?? '');
+
+            // If there is a block link in the line, we will try to find
+            // the task id from the block link and update the task instead.
+            // As a user can add a block link, not all tasks will be able to
+            // lookup a id from the internal cache.
+            if (todo.hasBlockLink && todo.hasId) {
+                logger.debug(`Updating Task: ${todo.title}`);
+
+                const returnedTask = await todoApi.getTask(listId, todo.id);
+
+                if (returnedTask) {
+                    todo.updateFromTodoTask(returnedTask);
+                    logger.debug(`blockLink: ${todo.blockLink}, taskId: ${todo.id}`);
+                    logger.debug(`updated: ${returnedTask.id}`);
+                }
+
+                return todo.getMarkdownTask(true);
+            }
+
+            return line;
+        }),
+    );
+
+    await plugin.app.vault.modify(activeFile, modifiedPage.join('\n'));
+}
+
 // Experimental
 // Should handle the following cases:
 // - [ ] Task

@@ -1,4 +1,4 @@
-import {type Client} from '@microsoft/microsoft-graph-client';
+import {RetryHandlerOptions, type Client} from '@microsoft/microsoft-graph-client';
 import {type TodoTask, type TodoTaskList} from '@microsoft/microsoft-graph-types';
 import {t} from '../lib/lang.js';
 import {logging} from '../lib/logging.js';
@@ -8,13 +8,22 @@ export class TodoApi {
     private readonly logger = logging.getLogger('mstodo-sync.TodoApi');
 
     private client: Client;
+    private readonly enableRetryOptions = false;
 
     constructor(clientProvider: MicrosoftClientProvider) {
-        clientProvider.getClient().then(client => {
-            this.client = client;
-        }).catch(() => {
-            throw new Error(t('Notice_UnableToAcquireClient'));
-        });
+        if (this.enableRetryOptions) {
+            clientProvider.getClientWithMiddleware().then(client => {
+                this.client = client;
+            }).catch(() => {
+                throw new Error(t('Notice_UnableToAcquireClient'));
+            });
+        } else {
+            clientProvider.getClient().then(client => {
+                this.client = client;
+            }).catch(() => {
+                throw new Error(t('Notice_UnableToAcquireClient'));
+            });
+        }
     }
 
     /**
@@ -143,7 +152,10 @@ export class TodoApi {
      */
     async getTask(listId: string, taskId: string): Promise<TodoTask | undefined> {
         const endpoint = `/me/todo/lists/${listId}/tasks/${taskId}`;
-        return (await this.client.api(endpoint).get()) as TodoTask;
+        return (await this.client
+            .api(endpoint)
+            .middlewareOptions([new RetryHandlerOptions(3, 3)])
+            .get()) as TodoTask;
     }
 
     /**

@@ -4,7 +4,7 @@ import {
 import {TodoApi} from './api/todoApi.js';
 import {DEFAULT_SETTINGS, MsTodoSyncSettingTab, type IMsTodoSyncSettings} from './gui/msTodoSyncSettingTab.js';
 import {
-    createTodayTasks, getTaskIdFromLine, postTask, postTaskAndChildren,
+    createTodayTasks, getTask, getTaskIdFromLine, postTask, postTaskAndChildren,
 } from './command/msTodoCommand.js';
 import {t} from './lib/lang.js';
 import {log, logging} from './lib/logging.js';
@@ -158,6 +158,24 @@ export default class MsTodoSync extends Plugin {
                     item.setTitle(t('EditorMenu_SyncToTodoAndReplace')).onClick(
                         async () => {
                             await this.pushTaskToMsTodoAndUpdatePage(editor);
+                        },
+                    );
+                });
+            }),
+        );
+
+        this.registerEvent(
+            this.app.workspace.on('editor-menu', (menu, editor, view) => {
+                menu.addItem(item => {
+                    item.setTitle(t('EditorMenu_FetchFromRemote')).onClick(
+                        async () => {
+                            await getTask(
+                                this.todoApi,
+                                this.settings.todoListSync?.listId,
+                                editor,
+                                this.app.workspace.getActiveFile()?.path,
+                                this,
+                            );
                         },
                     );
                 });
