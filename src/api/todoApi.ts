@@ -1,8 +1,15 @@
-import {RetryHandlerOptions, type Client} from '@microsoft/microsoft-graph-client';
+import {type PageCollection, RetryHandlerOptions, type Client} from '@microsoft/microsoft-graph-client';
 import {type TodoTask, type TodoTaskList} from '@microsoft/microsoft-graph-types';
 import {t} from '../lib/lang.js';
 import {logging} from '../lib/logging.js';
 import {type MicrosoftClientProvider} from './microsoftClientProvider.js';
+
+export class TasksDeltaCollection {
+    /**
+     *
+     */
+    constructor(public allTasks: TodoTask[], public deltaLink: string) {}
+}
 
 export class TodoApi {
     private readonly logger = logging.getLogger('mstodo-sync.TodoApi');
@@ -158,12 +165,40 @@ export class TodoApi {
             .get()) as TodoTask;
     }
 
-    async getTasksDelta(listId: string): Promise<any> {
-        const endpoint = `/me/todo/lists/${listId}/tasks/delta`;
-        return (await this.client
+    async getTasksDelta(listId: string, deltaLink: string): Promise<TasksDeltaCollection> {
+        const endpoint = deltaLink === '' ? `/me/todo/lists/${listId}/tasks/delta` : deltaLink;
+        const allTasks: TodoTask[] = [];
+
+        let response: PageCollection = await this.client
             .api(endpoint)
             .middlewareOptions([new RetryHandlerOptions(3, 3)])
-            .get()) as TodoTask;
+            .get() as PageCollection;
+
+        while (response.value.length > 0) {
+            for (const task of response.value as TodoTask[]) {
+                allTasks.push(task);
+            }
+
+            if (response['@odata.nextLink']) {
+                response = await this.client.api(response['@odata.nextLink']).get();
+            } else {
+                break;
+            }
+        }
+
+        if (response['@odata.deltaLink']) {
+            deltaLink = response['@odata.deltaLink'];
+        }
+
+        const tasksDeltaCollection = new TasksDeltaCollection(allTasks, deltaLink);
+
+        return tasksDeltaCollection;
+
+        // Old Version
+        // return (await this.client
+        //     .api(endpoint)
+        //     .middlewareOptions([new RetryHandlerOptions(3, 3)])
+        //     .get()) as TodoTask;
     }
 
     /**
@@ -189,6 +224,21 @@ export class TodoApi {
      */
     async updateTaskFromToDo(listId: string | undefined, taskId: string, toDo: TodoTask): Promise<TodoTask> {
         const endpoint = `/me/todo/lists/${listId}/tasks/${taskId}`;
+
+        if (toDo.linkedResources) {
+            const linkedResource = toDo.linkedResources.find(resource => resource.applicationName === 'Obsidian Microsoft To Do Sync');
+            if (linkedResource) {
+                const updatedLinkedResource = {
+                    '@odata.type': '#microsoft.graph.linkedResource',
+                    webUrl: linkedResource.webUrl,
+                    applicationName: 'Obsidian Microsoft To Do Sync',
+                    externalId: this.blockLink,
+                };
+                const linkedResourcesEndpoint = `/me/todo/lists/${listId}/tasks/${taskId}/linkedResources/${linkedResource.id}`;
+                const patchedLinkedResource = this.client.api(linkedResourcesEndpoint).update(updatedLinkedResource);
+            }
+        }
+
         toDo.linkedResources = undefined;
         return this.client.api(endpoint).patch(toDo);
     }

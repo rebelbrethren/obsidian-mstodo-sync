@@ -191,8 +191,6 @@ export default class MsTodoSync extends Plugin {
                                 await getTaskDelta(
                                     this.todoApi,
                                     this.settings.todoListSync?.listId,
-                                    editor,
-                                    this.app.workspace.getActiveFile()?.path,
                                     this,
                                 );
                             },

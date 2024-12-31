@@ -177,8 +177,9 @@ export class ObsidianTodoTask implements TodoTask {
 
         this.linkedResources.push({
             webUrl: `obsidian://advanced-uri?filepath=${fileName}`,
-            applicationName: 'Obsidian',
-            displayName: 'fileName',
+            applicationName: 'Obsidian Microsoft To Do Sync',
+            externalId: this.blockLink,
+            displayName: `Tracking Block Link: ${this.blockLink}`,
         });
 
         this.logger.debug(`Created: '${this.title}'`);

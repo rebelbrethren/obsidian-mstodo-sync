@@ -3,8 +3,9 @@ import {
     type DataAdapter, type Editor, type EditorPosition, Notice,
 } from 'obsidian';
 import {ObsidianTodoTask} from 'src/model/ObsidianTodoTask.js';
+import {type TodoTask} from '@microsoft/microsoft-graph-types';
 import type MsTodoSync from '../main.js';
-import {type TodoApi} from '../api/todoApi.js';
+import {TasksDeltaCollection, type TodoApi} from '../api/todoApi.js';
 import {type IMsTodoSyncSettings} from '../gui/msTodoSyncSettingTab.js';
 import {t} from '../lib/lang.js';
 import {log, logging} from '../lib/logging.js';
@@ -109,6 +110,9 @@ export async function postTask(
     const source = await plugin.app.vault.read(activeFile);
     const {lines} = await getCurrentLinesFromEditor(editor);
 
+    // Single call to update the cache using the delta link.
+    await getTaskDelta(todoApi, listId, plugin);
+
     const split = source.split('\n');
     const modifiedPage = await Promise.all(
         split.map(async (line: string, index: number) => {
@@ -126,6 +130,18 @@ export async function postTask(
             // lookup a id from the internal cache.
             if (todo.hasBlockLink && todo.hasId) {
                 logger.debug(`Updating Task: ${todo.title}`);
+                const cachedTasksDelta = await getDeltaCache(plugin);
+                const cachedTask = cachedTasksDelta?.allTasks.find(task => task.id === todo.id);
+
+                if (cachedTask) {
+                    const linkedResource = cachedTask.linkedResources?.find(resource => resource.applicationName === 'Obsidian Microsoft To Do Sync');
+                    if (linkedResource) {
+                        linkedResource.externalId = todo.blockLink;
+                        linkedResource.displayName = `Tracking Block Link: ${todo.blockLink}`;
+                    }
+                }
+
+                todo.linkedResources = cachedTask?.linkedResources;
 
                 const returnedTask = await todoApi.updateTaskFromToDo(listId, todo.id, todo.getTodoTask());
                 logger.debug(`blockLink: ${todo.blockLink}, taskId: ${todo.id}`);
@@ -177,6 +193,9 @@ export async function getTask(
     const source = await plugin.app.vault.read(activeFile);
     const {lines} = await getCurrentLinesFromEditor(editor);
 
+    // Single call to update the cache using the delta link.
+    await getTaskDelta(todoApi, listId, plugin);
+
     const split = source.split('\n');
     const modifiedPage = await Promise.all(
         split.map(async (line: string, index: number) => {
@@ -195,7 +214,9 @@ export async function getTask(
             if (todo.hasBlockLink && todo.hasId) {
                 logger.debug(`Updating Task: ${todo.title}`);
 
-                const returnedTask = await todoApi.getTask(listId, todo.id);
+                // Load from the delta cache file and pull the task from the cache.
+                const cachedTasksDelta = await getDeltaCache(plugin);
+                const returnedTask = cachedTasksDelta?.allTasks.find(task => task.id === todo.id);
 
                 if (returnedTask) {
                     todo.updateFromTodoTask(returnedTask);
@@ -213,11 +234,21 @@ export async function getTask(
     await plugin.app.vault.modify(activeFile, modifiedPage.join('\n'));
 }
 
+async function getDeltaCache(plugin: MsTodoSync) {
+    const cachePath = `${plugin.app.vault.configDir}/mstd-tasks-delta.json`;
+    const adapter: DataAdapter = plugin.app.vault.adapter;
+    let cachedTasksDelta: TasksDeltaCollection | undefined;
+
+    if (await adapter.exists(cachePath)) {
+        cachedTasksDelta = JSON.parse(await adapter.read(cachePath)) as TasksDeltaCollection;
+    }
+
+    return cachedTasksDelta;
+}
+
 export async function getTaskDelta(
     todoApi: TodoApi,
     listId: string | undefined,
-    editor: Editor,
-    fileName: string | undefined,
     plugin: MsTodoSync,
 ) {
     const logger = logging.getLogger('mstodo-sync.command.delta');
@@ -227,11 +258,64 @@ export async function getTaskDelta(
         return;
     }
 
-    const cachePath = `${this.app.vault.configDir}/tasks-delta.json`;
-    const adapter: DataAdapter = this.app.vault.adapter;
-    const returnedTask = await todoApi.getTasksDelta(listId);
+    const cachePath = `${plugin.app.vault.configDir}/mstd-tasks-delta.json`;
+    const adapter: DataAdapter = plugin.app.vault.adapter;
+    let deltaLink = '';
+    let cachedTasksDelta = await getDeltaCache(plugin);
 
-    await adapter.write(cachePath, JSON.stringify(returnedTask));
+    if (cachedTasksDelta) {
+        deltaLink = cachedTasksDelta.deltaLink;
+    } else {
+        cachedTasksDelta = new TasksDeltaCollection([], '');
+    }
+
+    const returnedTask = await todoApi.getTasksDelta(listId, deltaLink);
+    logger.info('deltaLink', deltaLink);
+    logger.info('ReturnedDelta', returnedTask);
+
+    if (cachedTasksDelta) {
+        logger.info('cachedTasksDelta.allTasks', cachedTasksDelta.allTasks.length);
+        logger.info('returnedTask.allTasks', returnedTask.allTasks.length);
+
+        cachedTasksDelta.allTasks = mergeCollections(cachedTasksDelta.allTasks, returnedTask.allTasks);
+        logger.info('cachedTasksDelta.allTasks', cachedTasksDelta.allTasks.length);
+
+        cachedTasksDelta.deltaLink = returnedTask.deltaLink;
+    } else {
+        logger.info('First run, loading delta cache');
+
+        cachedTasksDelta = returnedTask;
+    }
+
+    await adapter.write(cachePath, JSON.stringify(cachedTasksDelta));
+}
+
+// Function to merge collections
+function mergeCollections(col1: TodoTask[], col2: TodoTask[]): TodoTask[] {
+    const map = new Map<string, TodoTask>();
+
+    // Helper function to add items to the map
+    function addToMap(item: TodoTask) {
+        if (item.id && item.lastModifiedDateTime) {
+            const existingItem = map.get(item.id);
+            // If there is no last modified then just use the current item.
+            if (!existingItem || new Date(item.lastModifiedDateTime) > new Date(existingItem.lastModifiedDateTime ?? 0)) {
+                map.set(item.id, item);
+            }
+        }
+    }
+
+    // Add items from both collections to the map
+    for (const item of col1) {
+        addToMap(item);
+    }
+
+    for (const item of col2) {
+        addToMap(item);
+    }
+
+    // Convert map values back to an array
+    return Array.from(map.values());
 }
 
 // Experimental
