@@ -9,6 +9,21 @@ declare module 'obsidian' {
         appId: string;
         plugins: {
             enabledPlugins: Set<string>;
+            plugins: {
+                [pluginId: string]: Plugin | PeriodicNotes;
+            }
+        };
+    }
+
+    // Extending for known plugin integration so there is type safety.
+    interface PeriodicNotes {
+        settings: {
+            daily: {
+                enabled: boolean;
+                folder: string;
+                format: string;
+                template: string;
+            };
         };
     }
 

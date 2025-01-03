@@ -15,7 +15,7 @@ import {
 import { type ISettingsManager } from 'src/utils/settingsManager.js';
 import { t } from '../lib/lang.js';
 import { logging } from '../lib/logging.js';
-import { IMPORTANCE_REGEX, STATUS_SYMBOL_REGEX, TASK_REGEX } from '../constants.js';
+import { CREATED_REGEX, DUE_REGEX, IMPORTANCE_REGEX, STATUS_SYMBOL_REGEX, TASK_REGEX } from '../constants.js';
 
 /**
  * Represents a task in Obsidian that can be synchronized with Microsoft To Do.
@@ -163,7 +163,24 @@ export class ObsidianTodoTask implements TodoTask {
         // - [ ] Adding in updated linked resources updated from list dump  🔎[[2024-12-30]]  🔎[[2024-12-30]] ^MSTDa8de00053
         // This will strip out the created date if in title.
         if (this.title.includes(settingsManager.settings.displayOptions_TaskCreatedPrefix)) {
-            this.title = this.title.replaceAll(/🔎\[\[.*]]/g, '').replaceAll(/🔎\d{4}-\d{2}-\d{2}/g, '');
+            this.title = this.title
+                .replaceAll(new RegExp(`${settingsManager.settings.displayOptions_TaskCreatedPrefix}\\[\\[.*]]`, 'g'), '')
+                .replaceAll(new RegExp(`${settingsManager.settings.displayOptions_TaskCreatedPrefix}\\d{4}-\\d{2}-\\d{2}`, 'g'), '');
+        }
+
+        if (this.title.includes(settingsManager.settings.displayOptions_TaskDuePrefix)) {
+            const specifiedDueDate = this.title.match(new RegExp(`${settingsManager.settings.displayOptions_TaskDuePrefix}(\\d{4}-\\d{2}-\\d{2})`, 'g'));
+
+            if (specifiedDueDate) {
+                this.dueDateTime = {
+                    dateTime: specifiedDueDate[0].replace(settingsManager.settings.displayOptions_TaskDuePrefix, ''),
+                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                };
+            }
+
+            this.title = this.title
+                .replaceAll(new RegExp(`${settingsManager.settings.displayOptions_TaskDuePrefix}\\[\\[.*]]`, 'g'), '')
+                .replaceAll(new RegExp(`${settingsManager.settings.displayOptions_TaskDuePrefix}\\d{4}-\\d{2}-\\d{2}`, 'g'), '');
         }
 
         this.checkForImportance(line);
@@ -174,22 +191,26 @@ export class ObsidianTodoTask implements TodoTask {
             .trim();
 
         this.body = {
-            content: `${t('displayOptions_CreatedInFile')} [[${this.fileName}]]`,
+            content: '',
             contentType: 'text',
         };
 
         this.linkedResources ||= [];
 
-        const redirectUrl = `http://192.168.0.137:8901/redirectpage.html?vault=brainstore&filepath=${encodeURIComponent(fileName)}&block=${this.blockLink}`;
         this.linkedResources.push({
-            webUrl: redirectUrl,
+            webUrl: this.getRedirectUrl(),
             applicationName: 'Obsidian Microsoft To Do Sync',
             externalId: this.blockLink,
             displayName: `Tracking Block Link: ${this.blockLink}`,
         });
 
-        this.logger.debug(`Created: '${this.title}'`);
+        this.logger.info(`Created: '${this.title}'`);
     }
+
+    public getRedirectUrl (): string {
+        return `${this.settingsManager.settings.microsoftToDoApplication_RedirectUriBase}?vault=${this.settingsManager.vaultName}&block=${this.blockLink}`;
+    }
+
 
     /**
      * Cache the ID internally and generate block link.
@@ -243,6 +264,10 @@ export class ObsidianTodoTask implements TodoTask {
             toDo.linkedResources = this.linkedResources;
         }
 
+        if (this.dueDateTime) {
+            toDo.dueDateTime = this.dueDateTime;
+        }
+
         return toDo;
     }
 
@@ -268,6 +293,10 @@ export class ObsidianTodoTask implements TodoTask {
 
         if (remoteTask.linkedResources && remoteTask.linkedResources.length > 0) {
             this.linkedResources = remoteTask.linkedResources;
+        }
+
+        if (this.dueDateTime) {
+            this.dueDateTime = remoteTask.dueDateTime;
         }
 
         // Need to determine if we want to update the checklist items
@@ -320,6 +349,24 @@ export class ObsidianTodoTask implements TodoTask {
             .replace(STATUS_SYMBOL_REGEX, this.getStatusIndicator());
 
         output = output.includes(priorityIndicator) ? output.replace(IMPORTANCE_REGEX, '') : output.replace(IMPORTANCE_REGEX, priorityIndicator);
+
+        if (this.dueDateTime?.dateTime) {
+            const formattedDueDate = globalThis
+                .moment(this.dueDateTime?.dateTime)
+                .format(this.settingsManager.settings.displayOptions_DateFormat);
+            const dueDate = `${this.settingsManager.settings.displayOptions_TaskDuePrefix}${formattedDueDate}`;
+            output = output.replace(DUE_REGEX, dueDate);
+        } else {
+            output = output.replace(DUE_REGEX, '');
+        }
+
+
+        const formattedCreateDate = globalThis
+            .moment(this.createdDateTime)
+            .format(this.settingsManager.settings.displayOptions_DateFormat);
+        const createDate = `${this.settingsManager.settings.displayOptions_TaskCreatedPrefix}${formattedCreateDate}`;
+        output = output.replace(CREATED_REGEX, createDate);
+
 
         // Append block link at the end if it exists
         if (this.hasBlockLink && this.blockLink) {

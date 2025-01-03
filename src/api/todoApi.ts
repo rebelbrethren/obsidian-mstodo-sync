@@ -141,6 +141,7 @@ export class TodoApi {
             .filter(searchText)
             .get()
             .catch(error => {
+                this.logger.error('Failed to get tasks for list', error);
                 throw new Error(t('Notice_UnableToAcquireTaskFromConfiguredList'));
             });
         if (!res) {
@@ -165,6 +166,18 @@ export class TodoApi {
             .get()) as TodoTask;
     }
 
+    /**
+     * Retrieves the delta of tasks for a specified list.
+     * 
+     * @param listId - The ID of the task list.
+     * @param deltaLink - The delta link to use for fetching changes. If empty, fetches all tasks.
+     * @returns A promise that resolves to a `TasksDeltaCollection` containing the tasks and the new delta link.
+     * 
+     * @remarks
+     * This method uses the Microsoft Graph API to fetch tasks and their changes. It handles pagination and retries.
+     * 
+     * @throws Will throw an error if the API request fails.
+     */
     async getTasksDelta (listId: string, deltaLink: string): Promise<TasksDeltaCollection> {
         const endpoint = deltaLink === '' ? `/me/todo/lists/${listId}/tasks/delta` : deltaLink;
         const allTasks: TodoTask[] = [];
@@ -193,12 +206,6 @@ export class TodoApi {
         const tasksDeltaCollection = new TasksDeltaCollection(allTasks, deltaLink);
 
         return tasksDeltaCollection;
-
-        // Old Version
-        // return (await this.client
-        //     .api(endpoint)
-        //     .middlewareOptions([new RetryHandlerOptions(3, 3)])
-        //     .get()) as TodoTask;
     }
 
     /**
@@ -211,7 +218,8 @@ export class TodoApi {
     async createTaskFromToDo (listId: string | undefined, toDo: TodoTask): Promise<TodoTask> {
         const endpoint = `/me/todo/lists/${listId}/tasks`;
         this.logger.debug('Creating task from endpoint', endpoint);
-        return this.client.api(endpoint).post(toDo);
+        const createdToDo = await this.client.api(endpoint).post(toDo);
+        return createdToDo;
     }
 
     /**
@@ -222,37 +230,34 @@ export class TodoApi {
      * @param toDo - The updated task details.
      * @returns A promise that resolves to the updated task.
      */
-    async updateTaskFromToDo (listId: string | undefined, taskId: string, toDo: TodoTask, blockId: string): Promise<TodoTask> {
+    async updateTaskFromToDo (listId: string | undefined, taskId: string, toDo: TodoTask): Promise<TodoTask> {
         const endpoint = `/me/todo/lists/${listId}/tasks/${taskId}`;
-
-        if (toDo.linkedResources) {
-            const linkedResource = toDo.linkedResources.find(resource => resource.applicationName === 'Obsidian Microsoft To Do Sync');
-            if (linkedResource) {
-                const updatedLinkedResource = {
-                    '@odata.type': '#microsoft.graph.linkedResource',
-                    webUrl: linkedResource.webUrl,
-                    applicationName: 'Obsidian Microsoft To Do Sync',
-                    externalId: blockId,
-                };
-                const linkedResourcesEndpoint = `/me/todo/lists/${listId}/tasks/${taskId}/linkedResources/${linkedResource.id}`;
-                const patchedLinkedResource = this.client.api(linkedResourcesEndpoint).update(updatedLinkedResource);
-            }
-        }
 
         toDo.linkedResources = undefined;
         return this.client.api(endpoint).patch(toDo);
     }
 
-    async createLinkedResource (listId: string | undefined, taskId: string, blockId: string, fileName: string): Promise<any> {
+    async createLinkedResource (listId: string | undefined, taskId: string, blockId: string, webUrl: string): Promise<any> {
         const endpoint = `/me/todo/lists/${listId}/tasks/${taskId}/linkedResources`;
-        const redirectUrl = `http://192.168.0.137:8901/redirectpage.html?vault=brainstore&filepath=${encodeURIComponent(fileName)}&block=${blockId}`;
 
         const updatedLinkedResource = {
-            webUrl: redirectUrl,
+            webUrl: webUrl,
             applicationName: 'Obsidian Microsoft To Do Sync',
             externalId: blockId,
             displayName: `Tracking Block Link: ${blockId}`,
         };
         return this.client.api(endpoint).post(updatedLinkedResource);
+    }
+
+    async updateLinkedResource (listId: string | undefined, taskId: string, linkedResourceId: string, blockId: string, webUrl: string): Promise<any> {
+        const endpoint = `/me/todo/lists/${listId}/tasks/${taskId}/linkedResources/${linkedResourceId}`;
+
+        const updatedLinkedResource = {
+            webUrl: webUrl,
+            applicationName: 'Obsidian Microsoft To Do Sync',
+            externalId: blockId,
+            displayName: `Tracking Block Link: ${blockId}`,
+        };
+        return this.client.api(endpoint).update(updatedLinkedResource);
     }
 }

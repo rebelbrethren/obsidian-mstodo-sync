@@ -20,8 +20,8 @@
     "Delete": "Delete",
     "EditorMenu_OpenToDo": "Open To Do",
     "EditorMenu_SyncToTodo": "-> Push to Microsoft To Do",
-    "EditorMenu_SyncToTodoAndReplace": "-> Push to Microsoft To Do and update",
-    "EditorMenu_FetchFromRemote": "<- Fetch updates from Microsoft To Do",
+    "EditorMenu_SyncToTodoAndReplace": "Sync Task (Push)",
+    "EditorMenu_FetchFromRemote": "Sync Task (Pull)",
     "Enter": "Enter",
     "Friday": "Friday",
     "Language": "English",
@@ -85,5 +85,9 @@
     "displayOptions_CreatedInFile": "Created in",
     "today": "today",
     "tomorrow": "tomorrow",
-    "yesterday": "yesterday"
+    "yesterday": "yesterday",
+    "Settings_NativeApp_Heading": "📱 Native App Settings",
+    "Settings_NativeApp_Heading_Description": "If you have the Microsoft To Do app installed on your computer, you can open the app directly from Obsidian.",
+    "Settings_NativeApp_RedirectUriBase": "Redirect URI Base",
+    "Settings_NativeApp_RedirectUriBase_Description": "The base URI used to generate the advanced URI to open locally. "
 }

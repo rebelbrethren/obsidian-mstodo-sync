@@ -1,7 +1,7 @@
 /* eslint-disable max-params */
 import {
     type BlockCache,
-    type DataAdapter, type Editor, type EditorPosition, MarkdownView, Notice,
+    type DataAdapter, type Editor, type EditorPosition, MarkdownView,
 } from 'obsidian';
 import { ObsidianTodoTask } from 'src/model/obsidianTodoTask.js';
 import { type TodoTask } from '@microsoft/microsoft-graph-types';
@@ -11,6 +11,9 @@ import { TasksDeltaCollection, type TodoApi } from '../api/todoApi.js';
 import { type IMsTodoSyncSettings } from '../gui/msTodoSyncSettingTab.js';
 import { t } from '../lib/lang.js';
 import { log, logging } from '../lib/logging.js';
+import { UserNotice } from 'src/lib/userNotice.js';
+
+const userNotice = new UserNotice();
 
 export function getTaskIdFromLine (line: string, plugin: MsTodoSync): string {
     const regex = /\^(?!.*\^)([A-Za-z\d]+)/gm;
@@ -158,7 +161,7 @@ export async function postTask (
     const logger = logging.getLogger('mstodo-sync.command.post');
 
     if (!listId) {
-        const notice = new Notice(t('CommandNotice_SetListName'));
+        userNotice.showMessage(t('CommandNotice_SetListName'));
         return;
     }
 
@@ -167,7 +170,7 @@ export async function postTask (
         return;
     }
 
-    const notice = new Notice(t('CommandNotice_UpdatingToDo'), 3000);
+    userNotice.showMessage(t('CommandNotice_CreatingToDo'), 3000);
 
     const source = await plugin.app.vault.read(activeFile);
     const { lines } = await getCurrentLinesFromEditor(editor);
@@ -192,24 +195,22 @@ export async function postTask (
             // lookup a id from the internal cache.
             if (todo.hasBlockLink && todo.hasId) {
                 logger.debug(`Updating Task: ${todo.title}`);
+
+                // Check for linked resource and update if there otherwise create.
                 const cachedTasksDelta = await getDeltaCache(plugin);
                 const cachedTask = cachedTasksDelta?.allTasks.find(task => task.id === todo.id);
-
                 if (cachedTask) {
-                    const linkedResource = cachedTask.linkedResources?.find(resource => resource.applicationName === 'Obsidian Microsoft To Do Sync');
-                    if (linkedResource) {
-                        const redirectUrl = `http://192.168.0.137:8901/redirectpage.html?vault=brainstore&filepath=${encodeURIComponent(todo.fileName)}&block=${todo.blockLink ?? ''}`;
-                        linkedResource.webUrl = redirectUrl;
-                        linkedResource.externalId = todo.blockLink;
-                        linkedResource.displayName = `Tracking Block Link: ${todo.blockLink}`;
+                    const linkedResource = cachedTask.linkedResources?.first();
+                    if (linkedResource && linkedResource.id) {
+                        await todoApi.updateLinkedResource(listId, todo.id, linkedResource.id, todo.blockLink ?? '', todo.getRedirectUrl());
                     } else {
-                        await todoApi.createLinkedResource(listId, todo.id, todo.blockLink ?? '', todo.fileName);
+                        await todoApi.createLinkedResource(listId, todo.id, todo.blockLink ?? '', todo.getRedirectUrl());
                     }
                 }
 
                 todo.linkedResources = cachedTask?.linkedResources;
 
-                const returnedTask = await todoApi.updateTaskFromToDo(listId, todo.id, todo.getTodoTask(), todo.blockLink ?? '');
+                const returnedTask = await todoApi.updateTaskFromToDo(listId, todo.id, todo.getTodoTask());
                 logger.debug(`blockLink: ${todo.blockLink}, taskId: ${todo.id}`);
                 logger.debug(`updated: ${returnedTask.id}`);
             } else {
@@ -245,7 +246,7 @@ export async function getTask (
     const logger = logging.getLogger('mstodo-sync.command.get');
 
     if (!listId) {
-        const notice = new Notice(t('CommandNotice_SetListName'));
+        userNotice.showMessage(t('CommandNotice_SetListName'));
         return;
     }
 
@@ -254,7 +255,7 @@ export async function getTask (
         return;
     }
 
-    const notice = new Notice(t('CommandNotice_UpdatingToDo'), 3000);
+    userNotice.showMessage(t('CommandNotice_GettingToDo'), 3000);
 
     const source = await plugin.app.vault.read(activeFile);
     const { lines } = await getCurrentLinesFromEditor(editor);
@@ -321,7 +322,7 @@ export async function getTaskDelta (
     const logger = logging.getLogger('mstodo-sync.command.delta');
 
     if (!listId) {
-        const notice = new Notice(t('CommandNotice_SetListName'));
+        userNotice.showMessage(t('CommandNotice_SetListName'));
         return;
     }
 
@@ -415,11 +416,11 @@ export async function postTaskAndChildren (
     const logger = logging.getLogger('mstodo-sync.command.post');
 
     if (!listId) {
-        const notice = new Notice(t('CommandNotice_SetListName'));
+        userNotice.showMessage(t('CommandNotice_SetListName'));
         return;
     }
 
-    const notice = new Notice(t('CommandNotice_CreatingToDo'), 3000);
+    userNotice.showMessage(t('CommandNotice_CreatingToDo'), 3000);
 
     const cursorLocation = editor.getCursor();
     const topLevelTask = editor.getLine(cursorLocation.line);
@@ -529,7 +530,7 @@ export async function getAllTasksInList (
     const settings = plugin.settingsManager.settings;
 
     if (!listId) {
-        const notice = new Notice(t('CommandNotice_SetListName'));
+        userNotice.showMessage(t('CommandNotice_SetListName'));
         return;
     }
 
@@ -615,12 +616,12 @@ function stripHtml (html: string): string {
 }
 
 export async function createTodayTasks (todoApi: TodoApi, settings: IMsTodoSyncSettings, editor?: Editor) {
-    const notice = new Notice('获取微软待办中', 3000);
+    userNotice.showMessage('Getting Microsoft To Do tasks for today', 3000);
     const now = globalThis.moment();
     const pattern = `status ne 'completed' or completedDateTime/dateTime ge '${now.format('yyyy-MM-DD')}'`;
     const taskLists = await todoApi.getLists(pattern);
     if (!taskLists || taskLists.length === 0) {
-        const notice = new Notice('任务列表为空');
+        userNotice.showMessage('Task list is empty');
         return;
     }
 

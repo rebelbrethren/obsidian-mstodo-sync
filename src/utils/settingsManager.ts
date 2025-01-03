@@ -3,6 +3,7 @@ import type MsTodoSync from 'src/main';
 
 interface ISettingsManager {
     settings: IMsTodoSyncSettings;
+    vaultName: string;
     saveSettings (): void;
 }
 
@@ -11,6 +12,10 @@ class SettingsManager implements ISettingsManager {
 
     public get settings () {
         return this.plugin.settings;
+    }
+
+    public get vaultName () {
+        return this.plugin.app.vault.getName();
     }
 
     async saveSettings (): Promise<void> {

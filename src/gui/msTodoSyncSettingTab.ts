@@ -1,10 +1,10 @@
-/* eslint-disable max-params */
 import {
-    type App, Notice, PluginSettingTab, Setting,
+    type App, PeriodicNotes, PluginSettingTab, Setting,
 } from 'obsidian';
 import type MsTodoSync from '../main.js';
 import { t } from '../lib/lang.js';
 import { type ILogOptions } from '../lib/logging.js';
+import { IUserNotice } from 'src/lib/userNotice.js';
 
 export interface IMsTodoSyncSettings {
     todoListSync: {
@@ -53,6 +53,7 @@ export interface IMsTodoSyncSettings {
     taskIdLookup: Record<string, string>;
     taskIdIndex: number;
     hackingEnabled: boolean;
+    microsoftToDoApplication_RedirectUriBase: string;
 }
 
 export const DEFAULT_SETTINGS: IMsTodoSyncSettings = {
@@ -66,6 +67,7 @@ export const DEFAULT_SETTINGS: IMsTodoSyncSettings = {
         stayWithPN: false,
     },
     displayOptions_DateFormat: 'YYYY-MM-DD',
+
     displayOptions_TimeFormat: 'HH:mm',
     displayOptions_TaskCreatedPrefix: '🔎',
     displayOptions_TaskDuePrefix: '📅',
@@ -95,16 +97,20 @@ export const DEFAULT_SETTINGS: IMsTodoSyncSettings = {
     microsoft_AuthenticationClientId: '',
     microsoft_AuthenticationAuthority: '',
     hackingEnabled: false,
+    microsoftToDoApplication_RedirectUriBase: 'http://192.168.0.137:8901/redirectpage.html',
+
 };
 
 export class MsTodoSyncSettingTab extends PluginSettingTab {
     plugin: MsTodoSync;
     settings: IMsTodoSyncSettings;
+    userNotice: IUserNotice;
 
-    constructor (app: App, plugin: MsTodoSync) {
+    constructor (app: App, plugin: MsTodoSync, userNotice: IUserNotice) {
         super(app, plugin);
         this.plugin = plugin;
         this.settings = plugin.settings;
+        this.userNotice = userNotice;
     }
 
     /**
@@ -112,11 +118,11 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
      * for text based properties. If there is a update
      * it will save the new value.
      *
-     * @param {HTMLElement} containerEl
+     * @param {HTMLElement} containerElement
      * @param {string} title
      * @param {string} description
      * @param {string} currentValue
-     * @param {(value: string) => any} changeCallback
+     * @param {(value: string) => unknown} changeCallback
      * @memberof MsTodoSyncSettingTab
      */
     addTextSetting (
@@ -124,7 +130,7 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
         title: string,
         description: string,
         currentValue: string,
-        changeCallback: (value: string) => any,
+        changeCallback: (value: string) => unknown,
     ): void {
         new Setting(containerElement)
             .setName(t(title))
@@ -279,63 +285,63 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
             },
         );
 
-        containerEl.createEl('h2', { text: t('Settings_JournalFormatting') });
-        new Setting(containerEl).setName(t('Settings_JournalFormatting_PeriodicNotes')).addToggle(toggle =>
-            toggle.setValue(this.settings.diary.stayWithPN).onChange(async value => {
-                if (value) {
-                    const periodicNotesSettings // eslint-disable-line @typescript-eslint/no-unsafe-assignment
-                        = (this.app as any).plugins.plugins['periodic-notes'];
-                    if (periodicNotesSettings) {
-                        const { format, folder } = periodicNotesSettings.settings.daily; // eslint-disable-line @typescript-eslint/no-unsafe-assignment
-                        this.settings.diary = {
-                            format, // eslint-disable-line @typescript-eslint/no-unsafe-assignment
-                            folder, // eslint-disable-line @typescript-eslint/no-unsafe-assignment
-                            stayWithPN: true,
-                        };
-                        console.log('🚀 ~ this.settings.diary', this.settings.diary);
+        if (this.app.plugins.enabledPlugins.has('periodic-notes')) {
+
+            containerEl.createEl('h2', { text: t('Settings_JournalFormatting') });
+            new Setting(containerEl).setName(t('Settings_JournalFormatting_PeriodicNotes')).addToggle(toggle =>
+                toggle.setValue(this.settings.diary.stayWithPN).onChange(async value => {
+                    if (value) {
+                        const periodicNotesSettings = this.app.plugins.plugins['periodic-notes'] as PeriodicNotes;
+                        if (periodicNotesSettings) {
+                            const { format, folder } = periodicNotesSettings.settings.daily;
+                            this.settings.diary = {
+                                format,
+                                folder,
+                                stayWithPN: true,
+                            };
+                            await this.plugin.saveSettings();
+                            this.display();
+                        } else {
+                            this.userNotice.showMessage('Periodic Notes 中未设置');
+                            this.display();
+                        }
+                    } else {
+                        this.settings.diary.stayWithPN = false;
                         await this.plugin.saveSettings();
                         this.display();
-                    } else {
-                        const periodicNotesNotice = new Notice('Periodic Notes 中未设置');
-                        this.display();
                     }
-                } else {
-                    this.settings.diary.stayWithPN = false;
-                    await this.plugin.saveSettings();
-                    this.display();
-                }
-            }),
-        );
-
-        const dateFormat = new Setting(containerEl)
-            .setName(t('Settings_JournalFormatting_DateFormat'))
-            .setDesc(
-                `${t('Settings_JournalFormatting_DateFormatDescription')}  ${this.settings.diary.format ? globalThis.moment().format(this.settings.diary.format) : ''
-                }`,
-            )
-            .addText(text =>
-                text.setValue(this.settings.diary.format).onChange(async value => {
-                    this.settings.diary.format = value;
-                    dateFormat.setDesc(
-                        `${t('Settings_JournalFormatting_DateFormatDescription')}  ${this.settings.diary.format ? globalThis.moment().format(this.settings.diary.format) : ''
-                        }`,
-                    );
-                    await this.plugin.saveSettings();
                 }),
-            )
-            .setDisabled(this.settings.diary.stayWithPN);
+            );
 
-        new Setting(containerEl)
-            .setName(t('Settings_JournalFormatting_Folder'))
-            .setDesc(t('Settings_JournalFormatting_FolderDescription'))
-            .addText(text =>
-                text.setValue(this.settings.diary.folder).onChange(async value => {
-                    this.settings.diary.format = value;
-                    await this.plugin.saveSettings();
-                }),
-            )
-            .setDisabled(this.settings.diary.stayWithPN);
+            const dateFormat = new Setting(containerEl)
+                .setName(t('Settings_JournalFormatting_DateFormat'))
+                .setDesc(
+                    `${t('Settings_JournalFormatting_DateFormatDescription')}  ${this.settings.diary.format ? globalThis.moment().format(this.settings.diary.format) : ''
+                    }`,
+                )
+                .addText(text =>
+                    text.setValue(this.settings.diary.format).onChange(async value => {
+                        this.settings.diary.format = value;
+                        dateFormat.setDesc(
+                            `${t('Settings_JournalFormatting_DateFormatDescription')}  ${this.settings.diary.format ? globalThis.moment().format(this.settings.diary.format) : ''
+                            }`,
+                        );
+                        await this.plugin.saveSettings();
+                    }),
+                )
+                .setDisabled(this.settings.diary.stayWithPN);
 
+            new Setting(containerEl)
+                .setName(t('Settings_JournalFormatting_Folder'))
+                .setDesc(t('Settings_JournalFormatting_FolderDescription'))
+                .addText(text =>
+                    text.setValue(this.settings.diary.folder).onChange(async value => {
+                        this.settings.diary.format = value;
+                        await this.plugin.saveSettings();
+                    }),
+                )
+                .setDisabled(this.settings.diary.stayWithPN);
+        }
         // Authentication Overrides
         containerEl.createEl('h2', {
             text: t('Settings_Authentication_Heading'),
@@ -363,6 +369,25 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
                 this.settings.microsoft_AuthenticationClientId = value;
             },
         );
+
+        // Application Redirect Settings
+        containerEl.createEl('h2', {
+            text: t('Settings_NativeApp_Heading'),
+        });
+        containerEl.createEl('p', {
+            text: t('Settings_NativeApp_Heading_Description'),
+        });
+
+        this.addTextSetting(
+            containerEl,
+            'Settings_NativeApp_RedirectUriBase',
+            'Settings_NativeApp_RedirectUriBase_Description',
+            this.settings.microsoftToDoApplication_RedirectUriBase,
+            async value => {
+                this.settings.microsoftToDoApplication_RedirectUriBase = value;
+            },
+        );
+
     }
 
     async hide () {
@@ -370,7 +395,7 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
 
         if (this.settings.todoListSync.listId !== undefined || !listName) {
             if (!listName) {
-                const noListNotice = new Notice(t('General_NoListNameSet'));
+                this.userNotice.showMessage('General_NoListNameSet');
             }
         } else {
             let listId = await this.plugin.todoApi.getListIdByName(listName);
@@ -382,10 +407,10 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
                     listName,
                     listId,
                 };
-                const listSetNotice = new Notice(t('General_ListNameSet'));
+                this.userNotice.showMessage('General_ListNameSet');
                 await this.plugin.saveSettings();
             } else {
-                const listFiledNotice = new Notice(t('General_FailedToCreateList'));
+                this.userNotice.showMessage('General_FailedToCreateList');
             }
         }
     }

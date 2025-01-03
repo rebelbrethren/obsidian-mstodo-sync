@@ -11,9 +11,11 @@ import { t } from './lib/lang.js';
 import { log, logging } from './lib/logging.js';
 import { SettingsManager } from './utils/settingsManager.js';
 import { MicrosoftClientProvider } from './api/microsoftClientProvider.js';
+import { IUserNotice, UserNotice } from './lib/userNotice.js';
 
 export default class MsTodoSync extends Plugin {
     settings: IMsTodoSyncSettings;
+    userNotice: IUserNotice;
     public todoApi: TodoApi;
     public settingsManager: SettingsManager;
     public microsoftClientProvider: MicrosoftClientProvider;
@@ -27,6 +29,7 @@ export default class MsTodoSync extends Plugin {
         logging.registerConsoleLogger();
 
         log('info', `loading plugin "${this.manifest.name}" v${this.manifest.version}`);
+        this.userNotice = new UserNotice();
 
         await this.loadSettings();
 
@@ -34,7 +37,7 @@ export default class MsTodoSync extends Plugin {
 
         this.registerCommands();
 
-        this.addSettingTab(new MsTodoSyncSettingTab(this.app, this));
+        this.addSettingTab(new MsTodoSyncSettingTab(this.app, this, this.userNotice));
 
         try {
             this.microsoftClientProvider = new MicrosoftClientProvider(this.app);
@@ -141,20 +144,15 @@ export default class MsTodoSync extends Plugin {
     private registerMenuEditorOptions () {
         this.registerEvent(
             this.app.workspace.on('editor-menu', (menu, editor, view) => {
-                menu.addItem(item => {
-                    item.setTitle(t('EditorMenu_SyncToTodo')).onClick(
-                        async () => {
-                            await this.pushTaskToMsTodo(editor);
-                        },
-                    );
-                });
-            }),
-        );
+                menu.addSeparator();
+                // menu.addItem(item => {
+                //     item.setTitle(t('EditorMenu_SyncToTodo')).onClick(
+                //         async () => {
+                //             await this.pushTaskToMsTodo(editor);
+                //         },
+                //     );
+                // });
 
-        // 在右键菜单中注册命令：将选中的文字创建微软待办并替换
-        // Register command in the context menu: Create and replace the selected text to Microsoft To-Do
-        this.registerEvent(
-            this.app.workspace.on('editor-menu', (menu, editor, view) => {
                 menu.addItem(item => {
                     item.setTitle(t('EditorMenu_SyncToTodoAndReplace')).onClick(
                         async () => {
@@ -162,11 +160,7 @@ export default class MsTodoSync extends Plugin {
                         },
                     );
                 });
-            }),
-        );
 
-        this.registerEvent(
-            this.app.workspace.on('editor-menu', (menu, editor, view) => {
                 menu.addItem(item => {
                     item.setTitle(t('EditorMenu_FetchFromRemote')).onClick(
                         async () => {
@@ -180,14 +174,51 @@ export default class MsTodoSync extends Plugin {
                         },
                     );
                 });
+                menu.addItem(item => {
+                    item.setTitle('Sync Task with details (Push)').onClick(async () => {
+                        await postTaskAndChildren(
+                            this.todoApi,
+                            this.settings.todoListSync?.listId,
+                            editor,
+                            this.app.workspace.getActiveFile()?.path,
+                            this,
+                            true,
+                        );
+                    });
+                });
+
+                menu.addItem(item => {
+                    item.setTitle('Sync Task with details (Pull)').onClick(
+                        async () => {
+                            await postTaskAndChildren(
+                                this.todoApi,
+                                this.settings.todoListSync?.listId,
+                                editor,
+                                this.app.workspace.getActiveFile()?.path,
+                                this,
+                                false,
+                            );
+                        },
+                    );
+                });
+
+                menu.addItem(item => {
+                    item.setTitle(t('EditorMenu_OpenToDo')).onClick(async () => {
+                        this.viewTaskInTodo(editor);
+                    });
+                });
             }),
         );
 
         if (this.settings.hackingEnabled) {
             this.registerEvent(
                 this.app.workspace.on('editor-menu', (menu, editor, view) => {
+                    menu.addSeparator();
                     menu.addItem(item => {
-                        item.setTitle('hacking').onClick(
+                        item.setTitle('Testing Commands Enabled');
+                    });
+                    menu.addItem(item => {
+                        item.setTitle('Update Task Cache').onClick(
                             async () => {
                                 await getTaskDelta(
                                     this.todoApi,
@@ -197,11 +228,7 @@ export default class MsTodoSync extends Plugin {
                             },
                         );
                     });
-                }),
-            );
 
-            this.registerEvent(
-                this.app.workspace.on('editor-menu', (menu, editor, view) => {
                     menu.addItem(item => {
                         item.setTitle('Reset Task Cache').onClick(
                             async () => {
@@ -214,11 +241,7 @@ export default class MsTodoSync extends Plugin {
                             },
                         );
                     });
-                }),
-            );
 
-            this.registerEvent(
-                this.app.workspace.on('editor-menu', (menu, editor, view) => {
                     menu.addItem(item => {
                         item.setTitle('Cleanup Local Task Lookup Table').onClick(
                             async () => {
@@ -228,11 +251,7 @@ export default class MsTodoSync extends Plugin {
                             },
                         );
                     });
-                }),
-            );
 
-            this.registerEvent(
-                this.app.workspace.on('editor-menu', (menu, editor, view) => {
                     menu.addItem(item => {
                         item.setTitle('Insert all tasks with body').onClick(
                             async () => {
@@ -246,11 +265,7 @@ export default class MsTodoSync extends Plugin {
                             },
                         );
                     });
-                }),
-            );
 
-            this.registerEvent(
-                this.app.workspace.on('editor-menu', (menu, editor, view) => {
                     menu.addItem(item => {
                         item.setTitle('Insert all tasks').onClick(
                             async () => {
@@ -268,51 +283,7 @@ export default class MsTodoSync extends Plugin {
             );
         }
 
-        this.registerEvent(
-            this.app.workspace.on('editor-menu', (menu, editor, view) => {
-                menu.addItem(item => {
-                    item.setTitle('Sync Task with details (Push)').onClick(async () => {
-                        await postTaskAndChildren(
-                            this.todoApi,
-                            this.settings.todoListSync?.listId,
-                            editor,
-                            this.app.workspace.getActiveFile()?.path,
-                            this,
-                            true,
-                        );
-                    });
-                });
-            }),
-        );
 
-        this.registerEvent(
-            this.app.workspace.on('editor-menu', (menu, editor, view) => {
-                menu.addItem(item => {
-                    item.setTitle('Sync Task with details (Pull)').onClick(
-                        async () => {
-                            await postTaskAndChildren(
-                                this.todoApi,
-                                this.settings.todoListSync?.listId,
-                                editor,
-                                this.app.workspace.getActiveFile()?.path,
-                                this,
-                                false,
-                            );
-                        },
-                    );
-                });
-            }),
-        );
-
-        this.registerEvent(
-            this.app.workspace.on('editor-menu', (menu, editor, view) => {
-                menu.addItem(item => {
-                    item.setTitle(t('EditorMenu_OpenToDo')).onClick(async () => {
-                        this.viewTaskInTodo(editor);
-                    });
-                });
-            }),
-        );
     }
 
     /**
