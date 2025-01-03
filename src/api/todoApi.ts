@@ -222,7 +222,7 @@ export class TodoApi {
      * @param toDo - The updated task details.
      * @returns A promise that resolves to the updated task.
      */
-    async updateTaskFromToDo(listId: string | undefined, taskId: string, toDo: TodoTask): Promise<TodoTask> {
+    async updateTaskFromToDo(listId: string | undefined, taskId: string, toDo: TodoTask, blockId: string): Promise<TodoTask> {
         const endpoint = `/me/todo/lists/${listId}/tasks/${taskId}`;
 
         if (toDo.linkedResources) {
@@ -232,7 +232,7 @@ export class TodoApi {
                     '@odata.type': '#microsoft.graph.linkedResource',
                     webUrl: linkedResource.webUrl,
                     applicationName: 'Obsidian Microsoft To Do Sync',
-                    externalId: this.blockLink,
+                    externalId: blockId,
                 };
                 const linkedResourcesEndpoint = `/me/todo/lists/${listId}/tasks/${taskId}/linkedResources/${linkedResource.id}`;
                 const patchedLinkedResource = this.client.api(linkedResourcesEndpoint).update(updatedLinkedResource);
@@ -241,5 +241,18 @@ export class TodoApi {
 
         toDo.linkedResources = undefined;
         return this.client.api(endpoint).patch(toDo);
+    }
+
+    async createLinkedResource(listId: string | undefined, taskId: string, blockId: string, fileName: string): Promise<any> {
+        const endpoint = `/me/todo/lists/${listId}/tasks/${taskId}/linkedResources`;
+        const redirectUrl = `http://192.168.0.137:8901/redirectpage.html?vault=brainstore&filepath=${encodeURIComponent(fileName)}&block=${blockId}`;
+
+        const updatedLinkedResource = {
+            webUrl: redirectUrl,
+            applicationName: 'Obsidian Microsoft To Do Sync',
+            externalId: blockId,
+            displayName: `Tracking Block Link: ${blockId}`,
+        };
+        return this.client.api(endpoint).post(updatedLinkedResource);
     }
 }

@@ -4,7 +4,8 @@ import {
 import {TodoApi} from './api/todoApi.js';
 import {DEFAULT_SETTINGS, MsTodoSyncSettingTab, type IMsTodoSyncSettings} from './gui/msTodoSyncSettingTab.js';
 import {
-    createTodayTasks, getTask, getTaskDelta, getTaskIdFromLine, postTask, postTaskAndChildren,
+    cleanupCachedTaskIds,
+    createTodayTasks, getAllTasksInList, getTask, getTaskDelta, getTaskIdFromLine, postTask, postTaskAndChildren,
 } from './command/msTodoCommand.js';
 import {t} from './lib/lang.js';
 import {log, logging} from './lib/logging.js';
@@ -192,6 +193,73 @@ export default class MsTodoSync extends Plugin {
                                     this.todoApi,
                                     this.settings.todoListSync?.listId,
                                     this,
+                                );
+                            },
+                        );
+                    });
+                }),
+            );
+
+            this.registerEvent(
+                this.app.workspace.on('editor-menu', (menu, editor, view) => {
+                    menu.addItem(item => {
+                        item.setTitle('Reset Task Cache').onClick(
+                            async () => {
+                                await getTaskDelta(
+                                    this.todoApi,
+                                    this.settings.todoListSync?.listId,
+                                    this,
+                                    true,
+                                );
+                            },
+                        );
+                    });
+                }),
+            );
+
+            this.registerEvent(
+                this.app.workspace.on('editor-menu', (menu, editor, view) => {
+                    menu.addItem(item => {
+                        item.setTitle('Cleanup Local Task Lookup Table').onClick(
+                            async () => {
+                                await cleanupCachedTaskIds(
+                                    this,
+                                );
+                            },
+                        );
+                    });
+                }),
+            );
+
+            this.registerEvent(
+                this.app.workspace.on('editor-menu', (menu, editor, view) => {
+                    menu.addItem(item => {
+                        item.setTitle('Insert all tasks with body').onClick(
+                            async () => {
+                                await getAllTasksInList(
+                                    this.todoApi,
+                                    this.settings.todoListSync?.listId,
+                                    editor,
+                                    this,
+                                    true,
+                                );
+                            },
+                        );
+                    });
+                }),
+            );
+
+            this.registerEvent(
+                this.app.workspace.on('editor-menu', (menu, editor, view) => {
+                    menu.addItem(item => {
+                        item.setTitle('Insert all tasks').onClick(
+                            async () => {
+                                await getAllTasksInList(
+                                    this.todoApi,
+                                    this.settings.todoListSync?.listId,
+                                    editor,
+                                    this,
+                                    false,
                                 );
                             },
                         );

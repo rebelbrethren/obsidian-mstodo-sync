@@ -1,9 +1,11 @@
 /* eslint-disable max-params */
 import {
-    type DataAdapter, type Editor, type EditorPosition, Notice,
+    type BlockCache,
+    type DataAdapter, type Editor, type EditorPosition, MarkdownView, Notice,
 } from 'obsidian';
 import {ObsidianTodoTask} from 'src/model/ObsidianTodoTask.js';
 import {type TodoTask} from '@microsoft/microsoft-graph-types';
+import {type SettingsManager} from 'src/utils/settingsManager.js';
 import type MsTodoSync from '../main.js';
 import {TasksDeltaCollection, type TodoApi} from '../api/todoApi.js';
 import {type IMsTodoSyncSettings} from '../gui/msTodoSyncSettingTab.js';
@@ -73,6 +75,66 @@ export async function getCurrentLinesFromEditor(editor: Editor): Promise<ISelect
     };
 }
 
+export async function cleanupCachedTaskIds(
+    plugin: MsTodoSync,
+) {
+    const logger = logging.getLogger('mstodo-sync.command.lookupPluginBlocks');
+
+    // Collect all the blocks and ids from the metadata cache under the app.
+    const blockCache: Record<string, BlockCache> = populateBlockCache(plugin);
+
+    // Iterate over all the internal cached task ids in settings. If the block is not found in the metadata cache
+    // we will log it. The cache is a metadata hash and block id as block ids can be reused across pages.
+    for (const blockId in plugin.settings.taskIdLookup) {
+        if (Object.hasOwn(plugin.settings.taskIdLookup, blockId)) {
+            // Check if the block is in the metadata cache.
+            let found = false;
+            let block;
+            for (const key in blockCache) {
+                if (key.includes(blockId.toLowerCase())) {
+                    found = true;
+                    block = blockCache[key];
+                }
+            }
+
+            if (found) {
+                logger.info(`Block found in metadata cache: ${blockId}`, block);
+            } else {
+                logger.info(`Block not found in metadata cache: ${blockId}`);
+                // Clean up the block id from the settings.
+                delete plugin.settings.taskIdLookup[blockId]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
+                await plugin.settingsManager.saveSettings(); // eslint-disable-line no-await-in-loop
+            }
+        }
+    }
+
+    logger.info('blockCache', blockCache);
+}
+
+/**
+ * This will find all block references across all files.
+ *
+ * @param {MsTodoSync} plugin
+ * @return {*}  {Record<string, BlockCache>}
+ */
+function populateBlockCache(plugin: MsTodoSync): Record<string, BlockCache> {
+    const blockCache: Record<string, BlockCache> = {};
+    const internalMetadataCache = plugin.app.metadataCache.metadataCache;
+    for (const cacheKey in internalMetadataCache) {
+        if (Object.hasOwn(internalMetadataCache, cacheKey) && internalMetadataCache[cacheKey].blocks) {
+            const blocksCache = internalMetadataCache[cacheKey].blocks;
+            for (const blockKey in blocksCache) {
+                if (Object.hasOwn(internalMetadataCache, cacheKey)) {
+                    const block = blocksCache[blockKey];
+                    blockCache[`${cacheKey}-${blockKey}`] = block;
+                }
+            }
+        }
+    }
+
+    return blockCache;
+}
+
 /**
  * Posts tasks to Microsoft To Do from the selected lines in the editor.
  *
@@ -136,14 +198,18 @@ export async function postTask(
                 if (cachedTask) {
                     const linkedResource = cachedTask.linkedResources?.find(resource => resource.applicationName === 'Obsidian Microsoft To Do Sync');
                     if (linkedResource) {
+                        const redirectUrl = `http://192.168.0.137:8901/redirectpage.html?vault=brainstore&filepath=${encodeURIComponent(todo.fileName)}&block=${todo.blockLink ?? ''}`;
+                        linkedResource.webUrl = redirectUrl;
                         linkedResource.externalId = todo.blockLink;
                         linkedResource.displayName = `Tracking Block Link: ${todo.blockLink}`;
+                    } else {
+                        await todoApi.createLinkedResource(listId, todo.id, todo.blockLink ?? '', todo.fileName);
                     }
                 }
 
                 todo.linkedResources = cachedTask?.linkedResources;
 
-                const returnedTask = await todoApi.updateTaskFromToDo(listId, todo.id, todo.getTodoTask());
+                const returnedTask = await todoApi.updateTaskFromToDo(listId, todo.id, todo.getTodoTask(), todo.blockLink ?? '');
                 logger.debug(`blockLink: ${todo.blockLink}, taskId: ${todo.id}`);
                 logger.debug(`updated: ${returnedTask.id}`);
             } else {
@@ -250,6 +316,7 @@ export async function getTaskDelta(
     todoApi: TodoApi,
     listId: string | undefined,
     plugin: MsTodoSync,
+    reset = false,
 ) {
     const logger = logging.getLogger('mstodo-sync.command.delta');
 
@@ -260,6 +327,10 @@ export async function getTaskDelta(
 
     const cachePath = `${plugin.app.vault.configDir}/mstd-tasks-delta.json`;
     const adapter: DataAdapter = plugin.app.vault.adapter;
+    if (reset) {
+        await adapter.remove(cachePath);
+    }
+
     let deltaLink = '';
     let cachedTasksDelta = await getDeltaCache(plugin);
 
@@ -399,7 +470,7 @@ export async function postTaskAndChildren(
         // Const currentTaskState = await todoApi.getTask(listId, todo.id);
         let returnedTask;
         if (push) {
-            returnedTask = await todoApi.updateTaskFromToDo(listId, todo.id, todo.getTodoTask());
+            returnedTask = await todoApi.updateTaskFromToDo(listId, todo.id, todo.getTodoTask(), todo.blockLink ?? '');
             // Push the checklist items...
             todo.checklistItems = returnedTask.checklistItems;
             todo.status = returnedTask.status;
@@ -444,6 +515,103 @@ function getLineEndPos(line: number, editor: Editor): EditorPosition {
         line,
         ch: editor.getLine(line).length,
     };
+}
+
+export async function getAllTasksInList(
+    todoApi: TodoApi,
+    listId: string | undefined,
+    editor: Editor,
+    plugin: MsTodoSync,
+    withBody: boolean,
+) {
+    const logger = logging.getLogger('mstodo-sync.command.get');
+    const now = globalThis.moment();
+    const settings = plugin.settingsManager.settings;
+
+    if (!listId) {
+        const notice = new Notice(t('CommandNotice_SetListName'));
+        return;
+    }
+
+    // Single call to update the cache using the delta link.
+    await getTaskDelta(todoApi, listId, plugin);
+    const cachedTasksDelta = await getDeltaCache(plugin);
+
+    cachedTasksDelta?.allTasks.sort((a, b) => (a.status === 'completed' ? 1 : -1));
+
+    const lines = cachedTasksDelta?.allTasks?.filter(task => task.status !== 'completed')
+        .map(task => {
+            const formattedCreateDate = globalThis
+                .moment(task.createdDateTime)
+                .format(settings.displayOptions_DateFormat);
+            const done = task.status === 'completed' ? 'x' : ' ';
+            const createDate
+            = formattedCreateDate === now.format(settings.displayOptions_DateFormat)
+                ? ''
+                : `${settings.displayOptions_TaskCreatedPrefix}[[${formattedCreateDate}]]`;
+
+            let blockId = '';
+            for (const key in settings.taskIdLookup) {
+                if (Object.hasOwn(plugin.settings.taskIdLookup, key) && settings.taskIdLookup[key] === task.id) {
+                    blockId = `^${key}`;
+                }
+            }
+
+            if (blockId === '') {
+                const newId = cacheTaskId(task.id ?? '', plugin.settingsManager);
+                blockId = `^${newId}`;
+            }
+
+            if (task.body?.content && withBody) {
+                // If the body has multiple lines then indent slightly on a new line.
+                const bodyLines = task.body.content.split('\r\n');
+                const newBody = bodyLines.map((line, index) => `  ${stripHtml(line).trimEnd()}`);
+                return `- [${done}] ${task.title}  ${createDate} ${blockId}\n${newBody.join('\n')}`.trimEnd();
+            }
+
+            return `- [${done}] ${task.title}  ${createDate} ${blockId}`.trimEnd();
+        });
+
+    const allTasks = lines?.join('\n');
+
+    if (editor) {
+        editor.replaceSelection(allTasks ?? '');
+        const view = plugin.app.workspace.getActiveViewOfType(MarkdownView);
+        view?.leaf.view.tree.setCollapseAll(true);
+
+        // GetActiveViewOfType will return null if the active view is null, or if it's not a MarkdownView.
+        if (view?.tree) {
+            view.tree.setCollapseAll(true);
+            // ...
+        }
+    }
+}
+
+/**
+	 * Cache the ID internally and generate block link.
+	 *
+	 * @param {string} [id]
+	 * @return {*}  {Promise<void>}
+	 * @memberof ObsidianTodoTask
+	 */
+async function cacheTaskId(id: string, settingsManager: SettingsManager): Promise<string> {
+    settingsManager.settings.taskIdIndex += 1;
+
+    const index = `MSTD${Math.random().toString(20).slice(2, 6)}${settingsManager.settings.taskIdIndex
+        .toString()
+        .padStart(5, '0')}`;
+
+    settingsManager.settings.taskIdLookup[index] = id ?? '';
+
+    settingsManager.saveSettings().catch(error => {
+        console.error('Error saving settings', error);
+    });
+
+    return index;
+}
+
+function stripHtml(html: string): string {
+    return html.replaceAll(/<[^>]*>/g, '');
 }
 
 export async function createTodayTasks(todoApi: TodoApi, settings: IMsTodoSyncSettings, editor?: Editor) {

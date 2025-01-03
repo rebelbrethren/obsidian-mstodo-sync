@@ -161,6 +161,12 @@ export class ObsidianTodoTask implements TodoTask {
         // This will strip out the checkbox if in title.
         this.checkForStatus(line);
 
+        // - [ ] Adding in updated linked resources updated from list dump  🔎[[2024-12-30]]  🔎[[2024-12-30]] ^MSTDa8de00053
+        // This will strip out the created date if in title.
+        if (this.title.includes(settingsManager.settings.displayOptions_TaskCreatedPrefix)) {
+            this.title = this.title.replaceAll(/🔎\[\[.*]]/g, '').replaceAll(/🔎\d{4}-\d{2}-\d{2}/g, '');
+        }
+
         this.checkForImportance(line);
 
         this.title = this.title
@@ -175,8 +181,9 @@ export class ObsidianTodoTask implements TodoTask {
 
         this.linkedResources ||= [];
 
+        const redirectUrl = `http://192.168.0.137:8901/redirectpage.html?vault=brainstore&filepath=${encodeURIComponent(fileName)}&block=${this.blockLink}`;
         this.linkedResources.push({
-            webUrl: `obsidian://advanced-uri?filepath=${fileName}`,
+            webUrl: redirectUrl,
             applicationName: 'Obsidian Microsoft To Do Sync',
             externalId: this.blockLink,
             displayName: `Tracking Block Link: ${this.blockLink}`,
