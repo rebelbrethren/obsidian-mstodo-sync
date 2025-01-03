@@ -3,7 +3,7 @@ import {
     type BlockCache,
     type DataAdapter, type Editor, type EditorPosition, MarkdownView, Notice,
 } from 'obsidian';
-import {ObsidianTodoTask} from 'src/model/ObsidianTodoTask.js';
+import {ObsidianTodoTask} from 'src/model/obsidianTodoTask.js';
 import {type TodoTask} from '@microsoft/microsoft-graph-types';
 import {type SettingsManager} from 'src/utils/settingsManager.js';
 import type MsTodoSync from '../main.js';
