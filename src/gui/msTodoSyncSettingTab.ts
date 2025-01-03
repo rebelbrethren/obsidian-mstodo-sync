@@ -3,8 +3,8 @@ import {
     type App, Notice, PluginSettingTab, Setting,
 } from 'obsidian';
 import type MsTodoSync from '../main.js';
-import {t} from '../lib/lang.js';
-import {type ILogOptions} from '../lib/logging.js';
+import { t } from '../lib/lang.js';
+import { type ILogOptions } from '../lib/logging.js';
 
 export interface IMsTodoSyncSettings {
     todoListSync: {
@@ -90,7 +90,7 @@ export const DEFAULT_SETTINGS: IMsTodoSyncSettings = {
             'mstodo-sync': 'debug',
         },
     },
-    taskIdLookup: {'0000ABCD': '0'},
+    taskIdLookup: { '0000ABCD': '0' },
     taskIdIndex: 0,
     microsoft_AuthenticationClientId: '',
     microsoft_AuthenticationAuthority: '',
@@ -101,25 +101,25 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
     plugin: MsTodoSync;
     settings: IMsTodoSyncSettings;
 
-    constructor(app: App, plugin: MsTodoSync) {
+    constructor (app: App, plugin: MsTodoSync) {
         super(app, plugin);
         this.plugin = plugin;
         this.settings = plugin.settings;
     }
 
     /**
-	 * Creates a setting entry in the settings form
-	 * for text based properties. If there is a update
-	 * it will save the new value.
-	 *
-	 * @param {HTMLElement} containerEl
-	 * @param {string} title
-	 * @param {string} description
-	 * @param {string} currentValue
-	 * @param {(value: string) => any} changeCallback
-	 * @memberof MsTodoSyncSettingTab
-	 */
-    addTextSetting(
+     * Creates a setting entry in the settings form
+     * for text based properties. If there is a update
+     * it will save the new value.
+     *
+     * @param {HTMLElement} containerEl
+     * @param {string} title
+     * @param {string} description
+     * @param {string} currentValue
+     * @param {(value: string) => any} changeCallback
+     * @memberof MsTodoSyncSettingTab
+     */
+    addTextSetting (
         containerElement: HTMLElement,
         title: string,
         description: string,
@@ -137,8 +137,8 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
             );
     }
 
-    display(): void {
-        const {containerEl} = this;
+    display (): void {
+        const { containerEl } = this;
 
         containerEl.empty();
 
@@ -154,7 +154,7 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
             .setDesc(t('Settings_Todo_DefaultListNameDescription'))
             .addText(text =>
                 text
-                // .setPlaceholder('输入Todo列表名称')
+                    // .setPlaceholder('输入Todo列表名称')
                     .setValue(this.settings.todoListSync.listName ?? '')
                     .onChange(async value => {
                         this.settings.todoListSync.listName = value;
@@ -279,14 +279,14 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
             },
         );
 
-        containerEl.createEl('h2', {text: t('Settings_JournalFormatting')});
+        containerEl.createEl('h2', { text: t('Settings_JournalFormatting') });
         new Setting(containerEl).setName(t('Settings_JournalFormatting_PeriodicNotes')).addToggle(toggle =>
             toggle.setValue(this.settings.diary.stayWithPN).onChange(async value => {
                 if (value) {
                     const periodicNotesSettings // eslint-disable-line @typescript-eslint/no-unsafe-assignment
                         = (this.app as any).plugins.plugins['periodic-notes'];
                     if (periodicNotesSettings) {
-                        const {format, folder} = periodicNotesSettings.settings.daily; // eslint-disable-line @typescript-eslint/no-unsafe-assignment
+                        const { format, folder } = periodicNotesSettings.settings.daily; // eslint-disable-line @typescript-eslint/no-unsafe-assignment
                         this.settings.diary = {
                             format, // eslint-disable-line @typescript-eslint/no-unsafe-assignment
                             folder, // eslint-disable-line @typescript-eslint/no-unsafe-assignment
@@ -310,16 +310,14 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
         const dateFormat = new Setting(containerEl)
             .setName(t('Settings_JournalFormatting_DateFormat'))
             .setDesc(
-                `${t('Settings_JournalFormatting_DateFormatDescription')}  ${
-                    this.settings.diary.format ? globalThis.moment().format(this.settings.diary.format) : ''
+                `${t('Settings_JournalFormatting_DateFormatDescription')}  ${this.settings.diary.format ? globalThis.moment().format(this.settings.diary.format) : ''
                 }`,
             )
             .addText(text =>
                 text.setValue(this.settings.diary.format).onChange(async value => {
                     this.settings.diary.format = value;
                     dateFormat.setDesc(
-                        `${t('Settings_JournalFormatting_DateFormatDescription')}  ${
-                            this.settings.diary.format ? globalThis.moment().format(this.settings.diary.format) : ''
+                        `${t('Settings_JournalFormatting_DateFormatDescription')}  ${this.settings.diary.format ? globalThis.moment().format(this.settings.diary.format) : ''
                         }`,
                     );
                     await this.plugin.saveSettings();
@@ -367,7 +365,7 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
         );
     }
 
-    async hide() {
+    async hide () {
         const listName = this.settings.todoListSync.listName;
 
         if (this.settings.todoListSync.listId !== undefined || !listName) {

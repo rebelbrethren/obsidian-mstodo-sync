@@ -1,16 +1,16 @@
 import {
     type CachedMetadata, type Editor, EditorPosition, type MarkdownView, Notice, Platform, Plugin,
 } from 'obsidian';
-import {TodoApi} from './api/todoApi.js';
-import {DEFAULT_SETTINGS, MsTodoSyncSettingTab, type IMsTodoSyncSettings} from './gui/msTodoSyncSettingTab.js';
+import { TodoApi } from './api/todoApi.js';
+import { DEFAULT_SETTINGS, MsTodoSyncSettingTab, type IMsTodoSyncSettings } from './gui/msTodoSyncSettingTab.js';
 import {
     cleanupCachedTaskIds,
     createTodayTasks, getAllTasksInList, getTask, getTaskDelta, getTaskIdFromLine, postTask, postTaskAndChildren,
 } from './command/msTodoCommand.js';
-import {t} from './lib/lang.js';
-import {log, logging} from './lib/logging.js';
-import {SettingsManager} from './utils/settingsManager.js';
-import {MicrosoftClientProvider} from './api/microsoftClientProvider.js';
+import { t } from './lib/lang.js';
+import { log, logging } from './lib/logging.js';
+import { SettingsManager } from './utils/settingsManager.js';
+import { MicrosoftClientProvider } from './api/microsoftClientProvider.js';
 
 export default class MsTodoSync extends Plugin {
     settings: IMsTodoSyncSettings;
@@ -19,11 +19,11 @@ export default class MsTodoSync extends Plugin {
     public microsoftClientProvider: MicrosoftClientProvider;
 
     // Pulls the meta data for the a page to help with list processing.
-    getPageMetadata(path: string): CachedMetadata | undefined {
+    getPageMetadata (path: string): CachedMetadata | undefined {
         return this.app.metadataCache.getCache(path) ?? undefined;
     }
 
-    async onload() {
+    async onload () {
         logging.registerConsoleLogger();
 
         log('info', `loading plugin "${this.manifest.name}" v${this.manifest.version}`);
@@ -60,15 +60,15 @@ export default class MsTodoSync extends Plugin {
         this.settingsManager = new SettingsManager(this);
     }
 
-    async onunload() {
+    async onunload () {
         log('info', `unloading plugin "${this.manifest.name}" v${this.manifest.version}`);
     }
 
-    async loadSettings() {
+    async loadSettings () {
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData()); // eslint-disable-line @typescript-eslint/no-unsafe-assignment
     }
 
-    async saveSettings() {
+    async saveSettings () {
         await this.saveData(this.settings);
     }
 
@@ -86,7 +86,7 @@ export default class MsTodoSync extends Plugin {
      *
      * @private
      */
-    private registerCommands() {
+    private registerCommands () {
         this.addCommand({
             id: 'only-create-task',
             name: t('CommandName_PushToMsTodo'),
@@ -138,7 +138,7 @@ export default class MsTodoSync extends Plugin {
      *
      * @private
      */
-    private registerMenuEditorOptions() {
+    private registerMenuEditorOptions () {
         this.registerEvent(
             this.app.workspace.on('editor-menu', (menu, editor, view) => {
                 menu.addItem(item => {
@@ -323,7 +323,7 @@ export default class MsTodoSync extends Plugin {
      *
      * @param editor - The editor instance where the cursor is located.
      */
-    private viewTaskInTodo(editor: Editor) {
+    private viewTaskInTodo (editor: Editor) {
         const cursorLocation = editor.getCursor();
         const line = editor.getLine(cursorLocation.line);
         const taskId = getTaskIdFromLine(line, this);
@@ -346,7 +346,7 @@ export default class MsTodoSync extends Plugin {
      * @param editor - The editor instance containing the task to be posted.
      * @returns A promise that resolves when the task has been posted and the page updated.
      */
-    private async pushTaskToMsTodoAndUpdatePage(editor: Editor) {
+    private async pushTaskToMsTodoAndUpdatePage (editor: Editor) {
         await postTask(
             this.todoApi,
             this.settings.todoListSync?.listId,
@@ -363,7 +363,7 @@ export default class MsTodoSync extends Plugin {
      * @param editor - The editor instance containing the task to be pushed.
      * @returns A promise that resolves when the task has been successfully pushed.
      */
-    private async pushTaskToMsTodo(editor: Editor) {
+    private async pushTaskToMsTodo (editor: Editor) {
         await postTask(
             this.todoApi,
             this.settings.todoListSync?.listId,

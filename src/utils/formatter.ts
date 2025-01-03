@@ -1,4 +1,4 @@
-import {TASK_REGEX} from 'src/constants';
+import { TASK_REGEX } from 'src/constants';
 import type MsTodoSync from '../main.js';
 
 export const formatTask = (plugin: MsTodoSync, line: string) => {

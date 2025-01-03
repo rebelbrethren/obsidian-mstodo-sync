@@ -3,16 +3,16 @@ import {
     type BlockCache,
     type DataAdapter, type Editor, type EditorPosition, MarkdownView, Notice,
 } from 'obsidian';
-import {ObsidianTodoTask} from 'src/model/obsidianTodoTask.js';
-import {type TodoTask} from '@microsoft/microsoft-graph-types';
-import {type SettingsManager} from 'src/utils/settingsManager.js';
+import { ObsidianTodoTask } from 'src/model/obsidianTodoTask.js';
+import { type TodoTask } from '@microsoft/microsoft-graph-types';
+import { type SettingsManager } from 'src/utils/settingsManager.js';
 import type MsTodoSync from '../main.js';
-import {TasksDeltaCollection, type TodoApi} from '../api/todoApi.js';
-import {type IMsTodoSyncSettings} from '../gui/msTodoSyncSettingTab.js';
-import {t} from '../lib/lang.js';
-import {log, logging} from '../lib/logging.js';
+import { TasksDeltaCollection, type TodoApi } from '../api/todoApi.js';
+import { type IMsTodoSyncSettings } from '../gui/msTodoSyncSettingTab.js';
+import { t } from '../lib/lang.js';
+import { log, logging } from '../lib/logging.js';
 
-export function getTaskIdFromLine(line: string, plugin: MsTodoSync): string {
+export function getTaskIdFromLine (line: string, plugin: MsTodoSync): string {
     const regex = /\^(?!.*\^)([A-Za-z\d]+)/gm;
     const blocklistMatch = regex.exec(line.trim());
     if (blocklistMatch) {
@@ -40,7 +40,7 @@ interface ISelection {
  * - `end`: The ending position of the cursor or selection.
  * - `lines`: An array of line numbers that are currently selected or where the cursor is located.
  */
-export async function getCurrentLinesFromEditor(editor: Editor): Promise<ISelection> {
+export async function getCurrentLinesFromEditor (editor: Editor): Promise<ISelection> {
     log(
         'info',
         'Getting current lines from editor',
@@ -60,7 +60,7 @@ export async function getCurrentLinesFromEditor(editor: Editor): Promise<ISelect
         start = editor.getCursor('from');
         end = editor.getCursor('to');
         // Lines = source.split('\n').slice(start.line, end.line + 1);
-        lines = Array.from({length: end.line + 1 - start.line}, (v, k) => k + start.line);
+        lines = Array.from({ length: end.line + 1 - start.line }, (v, k) => k + start.line);
     } else {
         start = editor.getCursor();
         end = editor.getCursor();
@@ -75,7 +75,7 @@ export async function getCurrentLinesFromEditor(editor: Editor): Promise<ISelect
     };
 }
 
-export async function cleanupCachedTaskIds(
+export async function cleanupCachedTaskIds (
     plugin: MsTodoSync,
 ) {
     const logger = logging.getLogger('mstodo-sync.command.lookupPluginBlocks');
@@ -117,7 +117,7 @@ export async function cleanupCachedTaskIds(
  * @param {MsTodoSync} plugin
  * @return {*}  {Record<string, BlockCache>}
  */
-function populateBlockCache(plugin: MsTodoSync): Record<string, BlockCache> {
+function populateBlockCache (plugin: MsTodoSync): Record<string, BlockCache> {
     const blockCache: Record<string, BlockCache> = {};
     const internalMetadataCache = plugin.app.metadataCache.metadataCache;
     for (const cacheKey in internalMetadataCache) {
@@ -147,7 +147,7 @@ function populateBlockCache(plugin: MsTodoSync): Record<string, BlockCache> {
  *
  * @returns A promise that resolves when the tasks have been posted and the file has been modified.
  */
-export async function postTask(
+export async function postTask (
     todoApi: TodoApi,
     listId: string | undefined,
     editor: Editor,
@@ -170,7 +170,7 @@ export async function postTask(
     const notice = new Notice(t('CommandNotice_UpdatingToDo'), 3000);
 
     const source = await plugin.app.vault.read(activeFile);
-    const {lines} = await getCurrentLinesFromEditor(editor);
+    const { lines } = await getCurrentLinesFromEditor(editor);
 
     // Single call to update the cache using the delta link.
     await getTaskDelta(todoApi, listId, plugin);
@@ -235,7 +235,7 @@ export async function postTask(
     await plugin.app.vault.modify(activeFile, modifiedPage.join('\n'));
 }
 
-export async function getTask(
+export async function getTask (
     todoApi: TodoApi,
     listId: string | undefined,
     editor: Editor,
@@ -257,7 +257,7 @@ export async function getTask(
     const notice = new Notice(t('CommandNotice_UpdatingToDo'), 3000);
 
     const source = await plugin.app.vault.read(activeFile);
-    const {lines} = await getCurrentLinesFromEditor(editor);
+    const { lines } = await getCurrentLinesFromEditor(editor);
 
     // Single call to update the cache using the delta link.
     await getTaskDelta(todoApi, listId, plugin);
@@ -300,7 +300,7 @@ export async function getTask(
     await plugin.app.vault.modify(activeFile, modifiedPage.join('\n'));
 }
 
-async function getDeltaCache(plugin: MsTodoSync) {
+async function getDeltaCache (plugin: MsTodoSync) {
     const cachePath = `${plugin.app.vault.configDir}/mstd-tasks-delta.json`;
     const adapter: DataAdapter = plugin.app.vault.adapter;
     let cachedTasksDelta: TasksDeltaCollection | undefined;
@@ -312,7 +312,7 @@ async function getDeltaCache(plugin: MsTodoSync) {
     return cachedTasksDelta;
 }
 
-export async function getTaskDelta(
+export async function getTaskDelta (
     todoApi: TodoApi,
     listId: string | undefined,
     plugin: MsTodoSync,
@@ -362,11 +362,11 @@ export async function getTaskDelta(
 }
 
 // Function to merge collections
-function mergeCollections(col1: TodoTask[], col2: TodoTask[]): TodoTask[] {
+function mergeCollections (col1: TodoTask[], col2: TodoTask[]): TodoTask[] {
     const map = new Map<string, TodoTask>();
 
     // Helper function to add items to the map
-    function addToMap(item: TodoTask) {
+    function addToMap (item: TodoTask) {
         if (item.id && item.lastModifiedDateTime) {
             const existingItem = map.get(item.id);
             // If there is no last modified then just use the current item.
@@ -404,7 +404,7 @@ function mergeCollections(col1: TodoTask[], col2: TodoTask[]): TodoTask[] {
 // Lines are processed until the next line is blank or not indented by two spaces.
 // Also EOF will stop processing.
 // Allow variable depth or match column of first [
-export async function postTaskAndChildren(
+export async function postTaskAndChildren (
     todoApi: TodoApi,
     listId: string | undefined,
     editor: Editor,
@@ -435,14 +435,14 @@ export async function postTaskAndChildren(
 
     // Find the end of section which a blank line or a line that is not indented by two spaces.
     const endLine = lines.findIndex(
-    // (line, index) => !/[ ]{2,}- \[(.)\]/.test(line) && !line.startsWith('  ') && index > 0,
+        // (line, index) => !/[ ]{2,}- \[(.)\]/.test(line) && !line.startsWith('  ') && index > 0,
         (line, index) => line.length === 0 && index > 0,
     );
     logger.debug(`endLine: ${endLine}`);
 
     // Scan lines below task for sub tasks and body.
     for (const [index, line] of lines.slice(1, endLine).entries()) {
-    // Logger.debug(`processing line: ${index} -- ${line}`);
+        // Logger.debug(`processing line: ${index} -- ${line}`);
 
         if (line.startsWith('  - [')) {
             childTasks.push(line.trim());
@@ -503,21 +503,21 @@ export async function postTaskAndChildren(
     editor.replaceRange(todo.getMarkdownTask(false), start, end);
 }
 
-function getLineStartPos(line: number): EditorPosition {
+function getLineStartPos (line: number): EditorPosition {
     return {
         line,
         ch: 0,
     };
 }
 
-function getLineEndPos(line: number, editor: Editor): EditorPosition {
+function getLineEndPos (line: number, editor: Editor): EditorPosition {
     return {
         line,
         ch: editor.getLine(line).length,
     };
 }
 
-export async function getAllTasksInList(
+export async function getAllTasksInList (
     todoApi: TodoApi,
     listId: string | undefined,
     editor: Editor,
@@ -546,9 +546,9 @@ export async function getAllTasksInList(
                 .format(settings.displayOptions_DateFormat);
             const done = task.status === 'completed' ? 'x' : ' ';
             const createDate
-            = formattedCreateDate === now.format(settings.displayOptions_DateFormat)
-                ? ''
-                : `${settings.displayOptions_TaskCreatedPrefix}[[${formattedCreateDate}]]`;
+                = formattedCreateDate === now.format(settings.displayOptions_DateFormat)
+                    ? ''
+                    : `${settings.displayOptions_TaskCreatedPrefix}[[${formattedCreateDate}]]`;
 
             let blockId = '';
             for (const key in settings.taskIdLookup) {
@@ -588,13 +588,13 @@ export async function getAllTasksInList(
 }
 
 /**
-	 * Cache the ID internally and generate block link.
-	 *
-	 * @param {string} [id]
-	 * @return {*}  {Promise<void>}
-	 * @memberof ObsidianTodoTask
-	 */
-async function cacheTaskId(id: string, settingsManager: SettingsManager): Promise<string> {
+     * Cache the ID internally and generate block link.
+     *
+     * @param {string} [id]
+     * @return {*}  {Promise<void>}
+     * @memberof ObsidianTodoTask
+     */
+async function cacheTaskId (id: string, settingsManager: SettingsManager): Promise<string> {
     settingsManager.settings.taskIdIndex += 1;
 
     const index = `MSTD${Math.random().toString(20).slice(2, 6)}${settingsManager.settings.taskIdIndex
@@ -610,11 +610,11 @@ async function cacheTaskId(id: string, settingsManager: SettingsManager): Promis
     return index;
 }
 
-function stripHtml(html: string): string {
+function stripHtml (html: string): string {
     return html.replaceAll(/<[^>]*>/g, '');
 }
 
-export async function createTodayTasks(todoApi: TodoApi, settings: IMsTodoSyncSettings, editor?: Editor) {
+export async function createTodayTasks (todoApi: TodoApi, settings: IMsTodoSyncSettings, editor?: Editor) {
     const notice = new Notice('获取微软待办中', 3000);
     const now = globalThis.moment();
     const pattern = `status ne 'completed' or completedDateTime/dateTime ge '${now.format('yyyy-MM-DD')}'`;

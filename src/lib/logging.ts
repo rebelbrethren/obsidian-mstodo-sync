@@ -1,4 +1,4 @@
-import {Platform, type Plugin} from 'obsidian';
+import { Platform, type Plugin } from 'obsidian';
 /*
  * EventEmitter2 is an implementation of the EventEmitter module found in Node.js.
  * In addition to having a better benchmark performance than EventEmitter and being
@@ -8,7 +8,7 @@ import {Platform, type Plugin} from 'obsidian';
  * This has been added as EventEmitter in Node.JS is not available in the browser.
  * https://www.npmjs.com/package/eventemitter2
  */
-import {EventEmitter2} from 'eventemitter2';
+import { EventEmitter2 } from 'eventemitter2';
 
 /**
  * All possible log levels
@@ -34,7 +34,7 @@ export interface ILogEntry {
     module: string;
     location?: string;
     message: string;
-    objects: any;
+    objects: unknown;
 }
 
 /**
@@ -84,7 +84,7 @@ export class LogManager extends EventEmitter2 {
      * @return {*}  {LogManager}
      * @memberof LogManager
      */
-    public configure(options: ILogOptions): this {
+    public configure (options: ILogOptions): this {
         this.options = Object.assign({}, this.options, options);
         return this;
     }
@@ -96,7 +96,7 @@ export class LogManager extends EventEmitter2 {
      * @return {*}  {Logger}
      * @memberof LogManager
      */
-    public getLogger(moduleName: string): Logger {
+    public getLogger (moduleName: string): Logger {
         let currentMinimumLevel = 'none';
         let match = '';
 
@@ -117,7 +117,7 @@ export class LogManager extends EventEmitter2 {
      * @return {*}  {LogManager}
      * @memberof LogManager
      */
-    public onLogEntry(listener: (logEntry: ILogEntry) => void): this {
+    public onLogEntry (listener: (logEntry: ILogEntry) => void): this {
         this.on('log', listener);
         return this;
     }
@@ -131,7 +131,7 @@ export class LogManager extends EventEmitter2 {
      * @return {*}  {LogManager}
      * @memberof LogManager
      */
-    public registerConsoleLogger(): this {
+    public registerConsoleLogger (): this {
         if (this.consoleLoggerRegistered) {
             return this;
         }
@@ -214,7 +214,7 @@ export class Logger {
      * @param {string} minLevel
      * @memberof Logger
      */
-    constructor(private readonly logManager: EventEmitter2, private readonly name: string, minLevel: string) {
+    constructor (private readonly logManager: EventEmitter2, private readonly name: string, minLevel: string) {
         this.minLevel = this.levelToInt(minLevel);
     }
 
@@ -223,7 +223,7 @@ export class Logger {
      * @param logLevel
      * @param message
      */
-    public log(logLevel: string, message: string, objects?: any): void {
+    public log (logLevel: string, message: string, objects?: unknown): void {
         const level = this.levelToInt(logLevel);
         if (level < this.minLevel) {
             return;
@@ -233,7 +233,7 @@ export class Logger {
             level: logLevel,
             module: this.name,
             message,
-            objects, // eslint-disable-line @typescript-eslint/no-unsafe-assignment
+            objects,
             traceId: undefined,
         };
 
@@ -253,23 +253,23 @@ export class Logger {
         this.logManager.emit('log', logEntry);
     }
 
-    public trace(message: string, objects?: any): void {
+    public trace (message: string, objects?: unknown): void {
         this.log('trace', message, objects);
     }
 
-    public debug(message: string, objects?: any): void {
+    public debug (message: string, objects?: unknown): void {
         this.log('debug', message, objects);
     }
 
-    public info(message: string, objects?: any): void {
+    public info (message: string, objects?: unknown): void {
         this.log('info', message, objects);
     }
 
-    public warn(message: string, objects?: any): void {
+    public warn (message: string, objects?: unknown): void {
         this.log('warn', message, objects);
     }
 
-    public error(message: string, objects?: any): void {
+    public error (message: string, objects?: unknown): void {
         this.log('error', message, objects);
     }
 
@@ -278,7 +278,7 @@ export class Logger {
      * @param logLevel
      * @param message
      */
-    public logWithId(logLevel: string, traceId: string, message: string, objects?: any): void {
+    public logWithId (logLevel: string, traceId: string, message: string, objects?: unknown): void {
         const level = this.levelToInt(logLevel);
         if (level < this.minLevel) {
             return;
@@ -288,30 +288,30 @@ export class Logger {
             level: logLevel,
             module: this.name,
             message,
-            objects, // eslint-disable-line @typescript-eslint/no-unsafe-assignment
+            objects,
             traceId,
         };
 
         this.logManager.emit('log', logEntry);
     }
 
-    public traceWithId(traceId: string, message: string, objects?: any): void {
+    public traceWithId (traceId: string, message: string, objects?: unknown): void {
         this.logWithId('trace', traceId, message, objects);
     }
 
-    public debugWithId(traceId: string, message: string, objects?: any): void {
+    public debugWithId (traceId: string, message: string, objects?: unknown): void {
         this.logWithId('debug', traceId, message, objects);
     }
 
-    public infoWithId(traceId: string, message: string, objects?: any): void {
+    public infoWithId (traceId: string, message: string, objects?: unknown): void {
         this.logWithId('info', traceId, message, objects);
     }
 
-    public warnWithId(traceId: string, message: string, objects?: any): void {
+    public warnWithId (traceId: string, message: string, objects?: unknown): void {
         this.logWithId('warn', traceId, message, objects);
     }
 
-    public errorWithId(traceId: string, message: string, objects?: any): void {
+    public errorWithId (traceId: string, message: string, objects?: unknown): void {
         this.logWithId('error', traceId, message, objects);
     }
 
@@ -320,7 +320,7 @@ export class Logger {
      *
      * @param minLevel
      */
-    private levelToInt(minLevel: string): number {
+    private levelToInt (minLevel: string): number {
         if (minLevel.toLowerCase() in this.levels) {
             return this.levels[minLevel.toLowerCase()];
         }
@@ -329,23 +329,22 @@ export class Logger {
     }
 }
 
-export function logCallDetails() {
-    return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
-        const originalMethod = descriptor.value; // eslint-disable-line @typescript-eslint/no-unsafe-assignment
+export function logCallDetails () {
+    return function (target: unknown, propertyKey: string, descriptor: PropertyDescriptor) {
+        const originalMethod = descriptor.value;
         const logger = logging.getLogger('mstodo-sync');
 
-        descriptor.value = async function (...arguments_: any[]) {
+        descriptor.value = async function (...arguments_: unknown[]) {
             const startTime = new Date(Date.now());
-            const result = await originalMethod.apply(this, arguments_); // eslint-disable-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+            const result = await originalMethod.apply(this, arguments_);
             const endTime = new Date(Date.now());
             const elapsed = endTime.getTime() - startTime.getTime();
 
             logger.debug(
-                `${typeof target}:${propertyKey} called with ${
-                    arguments_.length
+                `${typeof target}:${propertyKey} called with ${arguments_.length
                 } arguments. Took: ${elapsed}ms ${JSON.stringify(arguments_)}`,
             );
-            return result; // eslint-disable-line @typescript-eslint/no-unsafe-return
+            return result;
         };
 
         return descriptor;
@@ -359,7 +358,7 @@ export function logCallDetails() {
  * @param {TLogLevelName} logLevel
  * @param {string} message
  */
-export function log(logLevel: TLogLevelName, message: string, objects?: any) {
+export function log (logLevel: TLogLevelName, message: string, objects?: unknown) {
     const logger = logging.getLogger('mstodo-sync');
 
     switch (logLevel) {
@@ -399,7 +398,7 @@ export function log(logLevel: TLogLevelName, message: string, objects?: any) {
  * @param {Plugin} plugin
  * @return {*}
  */
-export function monkeyPatchConsole(plugin: Plugin) {
+export function monkeyPatchConsole (plugin: Plugin) {
     if (!Platform.isMobile) {
         return;
     }
@@ -414,7 +413,7 @@ export function monkeyPatchConsole(plugin: Plugin) {
                     logs.push(String(message));
                 }
 
-                plugin.app.vault.adapter.write(logFile, logs.join(' ')); // eslint-disable-line @typescript-eslint/no-floating-promises
+                plugin.app.vault.adapter.write(logFile, logs.join(' '));
             };
 
     console.debug = logMessages('debug');

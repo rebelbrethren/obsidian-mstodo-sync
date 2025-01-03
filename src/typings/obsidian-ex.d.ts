@@ -1,7 +1,3 @@
-/* eslint-disable unicorn/filename-case */
-
-/* eslint-disable @typescript-eslint/naming-convention */
-
 import _ from 'obsidian';
 
 declare module 'obsidian' {
