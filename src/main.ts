@@ -1,17 +1,18 @@
 import {
-    type CachedMetadata, type Editor, EditorPosition, type MarkdownView, Notice, Platform, Plugin,
+    type CachedMetadata, type Editor, type MarkdownView, Plugin,
 } from 'obsidian';
 import { TodoApi } from './api/todoApi.js';
 import { DEFAULT_SETTINGS, MsTodoSyncSettingTab, type IMsTodoSyncSettings } from './gui/msTodoSyncSettingTab.js';
 import {
     cleanupCachedTaskIds,
-    createTodayTasks, getAllTasksInList, getTask, getTaskDelta, getTaskIdFromLine, postTask, postTaskAndChildren,
+    createTodayTasks, getAllTasksInList, getTask, getTaskDelta, postTask, postTaskAndChildren,
 } from './command/msTodoCommand.js';
 import { t } from './lib/lang.js';
 import { log, logging } from './lib/logging.js';
 import { SettingsManager } from './utils/settingsManager.js';
 import { MicrosoftClientProvider } from './api/microsoftClientProvider.js';
 import { IUserNotice, UserNotice } from './lib/userNotice.js';
+import { MsTodoActions } from './command/msToDoActions.js';
 
 export default class MsTodoSync extends Plugin {
     settings: IMsTodoSyncSettings;
@@ -19,6 +20,7 @@ export default class MsTodoSync extends Plugin {
     public todoApi: TodoApi;
     public settingsManager: SettingsManager;
     public microsoftClientProvider: MicrosoftClientProvider;
+    public msToDoActions: MsTodoActions;
 
     // Pulls the meta data for the a page to help with list processing.
     getPageMetadata (path: string): CachedMetadata | undefined {
@@ -33,12 +35,6 @@ export default class MsTodoSync extends Plugin {
 
         await this.loadSettings();
 
-        this.registerMenuEditorOptions();
-
-        this.registerCommands();
-
-        this.addSettingTab(new MsTodoSyncSettingTab(this.app, this, this.userNotice));
-
         try {
             this.microsoftClientProvider = new MicrosoftClientProvider(this.app);
             if (this.settings.microsoft_AuthenticationClientId !== '') {
@@ -52,15 +48,22 @@ export default class MsTodoSync extends Plugin {
             this.microsoftClientProvider.createPublicClientApplication();
         } catch (error) {
             if (error instanceof Error) {
-                const notice = new Notice(error.message);
+                this.userNotice.showMessage(error.message);
                 log('error', error.message);
                 log('error', error.stack ?? 'No stack trace available');
                 return;
             }
         }
 
+        this.registerMenuEditorOptions();
+
+        this.registerCommands();
+
+        this.addSettingTab(new MsTodoSyncSettingTab(this.app, this, this.userNotice));
+
         this.todoApi = new TodoApi(this.microsoftClientProvider);
         this.settingsManager = new SettingsManager(this);
+        this.msToDoActions = new MsTodoActions(this, this.settingsManager, this.todoApi);
     }
 
     async onunload () {
@@ -68,7 +71,7 @@ export default class MsTodoSync extends Plugin {
     }
 
     async loadSettings () {
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData()); // eslint-disable-line @typescript-eslint/no-unsafe-assignment
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
     }
 
     async saveSettings () {
@@ -93,7 +96,7 @@ export default class MsTodoSync extends Plugin {
         this.addCommand({
             id: 'only-create-task',
             name: t('CommandName_PushToMsTodo'),
-            editorCallback: async (editor: Editor, view: MarkdownView) => {
+            editorCallback: async (editor: Editor, _view: MarkdownView) => {
                 await this.pushTaskToMsTodo(editor);
             },
         });
@@ -103,7 +106,7 @@ export default class MsTodoSync extends Plugin {
         this.addCommand({
             id: 'create-task-replace',
             name: t('CommandName_PushToMsTodoAndReplace'),
-            editorCallback: async (editor: Editor, view: MarkdownView) => {
+            editorCallback: async (editor: Editor, _view: MarkdownView) => {
                 await this.pushTaskToMsTodoAndUpdatePage(editor);
             },
         });
@@ -112,15 +115,15 @@ export default class MsTodoSync extends Plugin {
         this.addCommand({
             id: 'open-task-link',
             name: t('CommandName_OpenToDo'),
-            editorCallback: async (editor: Editor, view: MarkdownView) => {
-                this.viewTaskInTodo(editor);
+            editorCallback: async (editor: Editor, _view: MarkdownView) => {
+                this.msToDoActions.viewTaskInTodo(editor);
             },
         });
 
         this.addCommand({
             id: 'add-microsoft-todo',
             name: t('CommandName_InsertSummary'),
-            editorCallback: async (editor: Editor, view: MarkdownView) => {
+            editorCallback: async (editor: Editor, _view: MarkdownView) => {
                 await createTodayTasks(this.todoApi, this.settings, editor);
             },
         });
@@ -143,7 +146,7 @@ export default class MsTodoSync extends Plugin {
      */
     private registerMenuEditorOptions () {
         this.registerEvent(
-            this.app.workspace.on('editor-menu', (menu, editor, view) => {
+            this.app.workspace.on('editor-menu', (menu, editor, _view) => {
                 menu.addSeparator();
                 // menu.addItem(item => {
                 //     item.setTitle(t('EditorMenu_SyncToTodo')).onClick(
@@ -204,7 +207,7 @@ export default class MsTodoSync extends Plugin {
 
                 menu.addItem(item => {
                     item.setTitle(t('EditorMenu_OpenToDo')).onClick(async () => {
-                        this.viewTaskInTodo(editor);
+                        this.msToDoActions.viewTaskInTodo(editor);
                     });
                 });
             }),
@@ -212,7 +215,7 @@ export default class MsTodoSync extends Plugin {
 
         if (this.settings.hackingEnabled) {
             this.registerEvent(
-                this.app.workspace.on('editor-menu', (menu, editor, view) => {
+                this.app.workspace.on('editor-menu', (menu, editor, _view) => {
                     menu.addSeparator();
                     menu.addItem(item => {
                         item.setTitle('Testing Commands Enabled');
@@ -279,32 +282,21 @@ export default class MsTodoSync extends Plugin {
                             },
                         );
                     });
+
+                    menu.addItem(item => {
+                        item.setTitle('Sync Vault').onClick(
+                            async () => {
+                                this.msToDoActions.syncVault(
+                                    this.settings.todoListSync?.listId,
+                                );
+                            },
+                        );
+                    });
                 }),
             );
         }
 
 
-    }
-
-    /**
-     * Opens the task in Microsoft To Do based on the cursor location in the editor.
-     * If the task ID is found in the current line, it will open the task details either
-     * using the application protocol (if not on mobile and the setting is enabled) or
-     * via the web URL.
-     *
-     * @param editor - The editor instance where the cursor is located.
-     */
-    private viewTaskInTodo (editor: Editor) {
-        const cursorLocation = editor.getCursor();
-        const line = editor.getLine(cursorLocation.line);
-        const taskId = getTaskIdFromLine(line, this);
-        if (taskId !== '') {
-            if (!Platform.isMobile && this.settings.todo_OpenUsingApplicationProtocol) {
-                window.open(`ms-todo://tasks/id/${taskId}/details`, '_blank');
-            } else {
-                window.open(`https://to-do.live.com/tasks/id/${taskId}/details`, '_blank');
-            }
-        }
     }
 
     /**
@@ -318,12 +310,10 @@ export default class MsTodoSync extends Plugin {
      * @returns A promise that resolves when the task has been posted and the page updated.
      */
     private async pushTaskToMsTodoAndUpdatePage (editor: Editor) {
-        await postTask(
-            this.todoApi,
+        await this.msToDoActions.postTask(
             this.settings.todoListSync?.listId,
             editor,
             this.app.workspace.getActiveFile()?.path,
-            this,
             true,
         );
     }
@@ -335,12 +325,10 @@ export default class MsTodoSync extends Plugin {
      * @returns A promise that resolves when the task has been successfully pushed.
      */
     private async pushTaskToMsTodo (editor: Editor) {
-        await postTask(
-            this.todoApi,
+        await this.msToDoActions.postTask(
             this.settings.todoListSync?.listId,
             editor,
             this.app.workspace.getActiveFile()?.path,
-            this,
             false,
         );
     }

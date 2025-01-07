@@ -71,6 +71,8 @@
     "Settings_Todo_Display_TimeFormatDescription": "The format used when adding or rendering a time for a task.",
     "Settings_Todo_OpenUsingApplicationProtocolDescription": "If this is set to true it will open the todo in the locally installed application, set it to off if you want to open the todo in the browser.",
     "Settings_Todo_OpenUsingApplicationProtocolTitle": "Open with application protocol?",
+    "Settings_Todo_Display_RegExToRunOnPushAgainstTitle": "RegEx to run on push to remove items from title",
+    "Settings_Todo_Display_RegExToRunOnPushAgainstTitle_Description": "When a task is pushed to Microsoft To Do, this regular expression is run against the title to remove any unwanted text.",
     "Settings_Uptimer": "Uptimer",
     "Settings_Uptimer_UpTimerEmail": "Uptimer registration email",
     "Settings_Uptimer_UpTimerPassword": "Uptimer password",

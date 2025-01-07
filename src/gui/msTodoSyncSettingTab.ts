@@ -20,6 +20,7 @@ export interface IMsTodoSyncSettings {
 
     displayOptions_DateFormat: string;
     displayOptions_TimeFormat: string;
+    displayOptions_RegExToRunOnPushAgainstTitle: string;
     displayOptions_TaskCreatedPrefix: string;
     displayOptions_TaskDuePrefix: string;
     displayOptions_TaskStartPrefix: string;
@@ -67,8 +68,8 @@ export const DEFAULT_SETTINGS: IMsTodoSyncSettings = {
         stayWithPN: false,
     },
     displayOptions_DateFormat: 'YYYY-MM-DD',
-
     displayOptions_TimeFormat: 'HH:mm',
+    displayOptions_RegExToRunOnPushAgainstTitle: '',
     displayOptions_TaskCreatedPrefix: '🔎',
     displayOptions_TaskDuePrefix: '📅',
     displayOptions_TaskStartPrefix: '🛫',
@@ -130,7 +131,7 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
         title: string,
         description: string,
         currentValue: string,
-        changeCallback: (value: string) => unknown,
+        changeCallback: (_value: string) => unknown,
     ): void {
         new Setting(containerElement)
             .setName(t(title))
@@ -201,6 +202,16 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }),
             );
+
+        this.addTextSetting(
+            containerEl,
+            'Settings_Todo_Display_RegExToRunOnPushAgainstTitle',
+            'Settings_Todo_Display_RegExToRunOnPushAgainstTitle_Description',
+            this.settings.displayOptions_RegExToRunOnPushAgainstTitle,
+            async value => {
+                this.settings.displayOptions_RegExToRunOnPushAgainstTitle = value;
+            },
+        );
 
         new Setting(containerEl)
             .setName(t('Settings_Todo_Display_AddCreatedAtOnReplace'))

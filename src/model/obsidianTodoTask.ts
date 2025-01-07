@@ -13,7 +13,6 @@ import {
     type TodoTask,
 } from '@microsoft/microsoft-graph-types';
 import { type ISettingsManager } from 'src/utils/settingsManager.js';
-import { t } from '../lib/lang.js';
 import { logging } from '../lib/logging.js';
 import { CREATED_REGEX, DUE_REGEX, IMPORTANCE_REGEX, STATUS_SYMBOL_REGEX, TASK_REGEX } from '../constants.js';
 
@@ -147,9 +146,8 @@ export class ObsidianTodoTask implements TodoTask {
      * @param line - The line of text representing the task.
      * @param fileName - The name of the file where the task is located.
      */
-    constructor (private readonly settingsManager: ISettingsManager, line: string, public fileName: string) {
+    constructor (private readonly settingsManager: ISettingsManager, line: string) {
         this.originalTitle = line;
-        this.logger.debug(`Creating: '${this.originalTitle}'`);
 
         this.title = line.trim();
 
@@ -164,12 +162,13 @@ export class ObsidianTodoTask implements TodoTask {
         // This will strip out the created date if in title.
         if (this.title.includes(settingsManager.settings.displayOptions_TaskCreatedPrefix)) {
             this.title = this.title
-                .replaceAll(new RegExp(`${settingsManager.settings.displayOptions_TaskCreatedPrefix}\\[\\[.*]]`, 'g'), '')
-                .replaceAll(new RegExp(`${settingsManager.settings.displayOptions_TaskCreatedPrefix}\\d{4}-\\d{2}-\\d{2}`, 'g'), '');
+                .replaceAll(new RegExp(`${settingsManager.settings.displayOptions_TaskCreatedPrefix} ?\\[\\[.*]]`, 'g'), '')
+                .replaceAll(new RegExp(`${settingsManager.settings.displayOptions_TaskCreatedPrefix} ?\\d{4}-\\d{2}-\\d{2}`, 'g'), '')
+                .trim();
         }
 
         if (this.title.includes(settingsManager.settings.displayOptions_TaskDuePrefix)) {
-            const specifiedDueDate = this.title.match(new RegExp(`${settingsManager.settings.displayOptions_TaskDuePrefix}(\\d{4}-\\d{2}-\\d{2})`, 'g'));
+            const specifiedDueDate = this.title.match(new RegExp(`${settingsManager.settings.displayOptions_TaskDuePrefix} ?(\\d{4}-\\d{2}-\\d{2})`, 'g'));
 
             if (specifiedDueDate) {
                 this.dueDateTime = {
@@ -179,8 +178,9 @@ export class ObsidianTodoTask implements TodoTask {
             }
 
             this.title = this.title
-                .replaceAll(new RegExp(`${settingsManager.settings.displayOptions_TaskDuePrefix}\\[\\[.*]]`, 'g'), '')
-                .replaceAll(new RegExp(`${settingsManager.settings.displayOptions_TaskDuePrefix}\\d{4}-\\d{2}-\\d{2}`, 'g'), '');
+                .replaceAll(new RegExp(`${settingsManager.settings.displayOptions_TaskDuePrefix} ?\\[\\[.*]]`, 'g'), '')
+                .replaceAll(new RegExp(`${settingsManager.settings.displayOptions_TaskDuePrefix} ?\\d{4}-\\d{2}-\\d{2}`, 'g'), '')
+                .trim();
         }
 
         this.checkForImportance(line);
@@ -189,6 +189,12 @@ export class ObsidianTodoTask implements TodoTask {
             .trim()
             .replaceAll(/(- \[([ /x])] )|\*|^> |^#* |- /gm, '')
             .trim();
+
+        // Remove any items the user does not want pushed to Microsoft To Do
+        if (settingsManager.settings.displayOptions_RegExToRunOnPushAgainstTitle !== '') {
+            this.title = this.title
+                .replaceAll(new RegExp(`${settingsManager.settings.displayOptions_RegExToRunOnPushAgainstTitle}`, 'g'), '');
+        }
 
         this.body = {
             content: '',
@@ -204,7 +210,7 @@ export class ObsidianTodoTask implements TodoTask {
             displayName: `Tracking Block Link: ${this.blockLink}`,
         });
 
-        this.logger.info(`Created: '${this.title}'`);
+        this.logger.debug(`Created: '${this.title}'`);
     }
 
     public getRedirectUrl (): string {
@@ -295,7 +301,7 @@ export class ObsidianTodoTask implements TodoTask {
             this.linkedResources = remoteTask.linkedResources;
         }
 
-        if (this.dueDateTime) {
+        if (remoteTask.dueDateTime) {
             this.dueDateTime = remoteTask.dueDateTime;
         }
 
@@ -360,13 +366,11 @@ export class ObsidianTodoTask implements TodoTask {
             output = output.replace(DUE_REGEX, '');
         }
 
-
         const formattedCreateDate = globalThis
             .moment(this.createdDateTime)
             .format(this.settingsManager.settings.displayOptions_DateFormat);
         const createDate = `${this.settingsManager.settings.displayOptions_TaskCreatedPrefix}${formattedCreateDate}`;
         output = output.replace(CREATED_REGEX, createDate);
-
 
         // Append block link at the end if it exists
         if (this.hasBlockLink && this.blockLink) {

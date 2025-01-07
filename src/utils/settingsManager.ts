@@ -18,9 +18,19 @@ class SettingsManager implements ISettingsManager {
         return this.plugin.app.vault.getName();
     }
 
+    public getTaskIdFromBlockId (blockId: string): string {
+        return this.findKeyCaseInsensitive(this.plugin.settings.taskIdLookup, blockId);
+    }
+
     async saveSettings (): Promise<void> {
         // Implementation to save settings
         await this.plugin.saveData(this.plugin.settings);
+    }
+
+    private findKeyCaseInsensitive (obj: Record<string, any>, key: string): any {
+        const lowerCaseKey = key.toLowerCase();
+        const foundKey = Object.keys(obj).find(k => k.toLowerCase() === lowerCaseKey);
+        return foundKey ? obj[foundKey] : undefined;
     }
 }
 

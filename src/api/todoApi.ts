@@ -1,4 +1,4 @@
-import { type PageCollection, RetryHandlerOptions, type Client } from '@microsoft/microsoft-graph-client';
+import { type PageCollection, RetryHandlerOptions, type Client, BatchRequestStep } from '@microsoft/microsoft-graph-client';
 import { type TodoTask, type TodoTaskList } from '@microsoft/microsoft-graph-types';
 import { t } from '../lib/lang.js';
 import { logging } from '../lib/logging.js';
@@ -233,6 +233,7 @@ export class TodoApi {
     async updateTaskFromToDo (listId: string | undefined, taskId: string, toDo: TodoTask): Promise<TodoTask> {
         const endpoint = `/me/todo/lists/${listId}/tasks/${taskId}`;
 
+
         toDo.linkedResources = undefined;
         return this.client.api(endpoint).patch(toDo);
     }
@@ -258,6 +259,10 @@ export class TodoApi {
             externalId: blockId,
             displayName: `Tracking Block Link: ${blockId}`,
         };
-        return this.client.api(endpoint).update(updatedLinkedResource);
+
+        const response = await this.client.api(endpoint).update(updatedLinkedResource);
+        return response;
     }
 }
+
+

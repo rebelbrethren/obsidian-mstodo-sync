@@ -1,8 +1,17 @@
+/* eslint-disable no-unused-vars */
 import _ from 'obsidian';
 
 declare module 'obsidian' {
+
+    interface FileCacheRecord {
+        mtime: number;
+        size: number;
+        hash: string;
+    }
+
     interface MetadataCache {
         metadataCache: Record<string, CachedMetadata>;
+        fileCache: Record<string, FileCacheRecord>;
     }
 
     interface App {

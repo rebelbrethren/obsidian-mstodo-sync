@@ -1,4 +1,3 @@
-/* eslint-disable max-params */
 import {
     type BlockCache,
     type DataAdapter, type Editor, type EditorPosition, MarkdownView,
@@ -12,6 +11,7 @@ import { type IMsTodoSyncSettings } from '../gui/msTodoSyncSettingTab.js';
 import { t } from '../lib/lang.js';
 import { log, logging } from '../lib/logging.js';
 import { UserNotice } from 'src/lib/userNotice.js';
+
 
 const userNotice = new UserNotice();
 
@@ -187,7 +187,7 @@ export async function postTask (
             }
 
             // Create the to do task from the line that is in the selection.
-            const todo = new ObsidianTodoTask(plugin.settingsManager, line, fileName ?? '');
+            const todo = new ObsidianTodoTask(plugin.settingsManager, line);
 
             // If there is a block link in the line, we will try to find
             // the task id from the block link and update the task instead.
@@ -272,7 +272,7 @@ export async function getTask (
             }
 
             // Create the to do task from the line that is in the selection.
-            const todo = new ObsidianTodoTask(plugin.settingsManager, line, fileName ?? '');
+            const todo = new ObsidianTodoTask(plugin.settingsManager, line);
 
             // If there is a block link in the line, we will try to find
             // the task id from the block link and update the task instead.
@@ -457,7 +457,7 @@ export async function postTaskAndChildren (
     logger.debug(`body: ${body}`);
     logger.debug(`childTasks: ${childTasks}`, childTasks);
 
-    const todo = new ObsidianTodoTask(plugin.settingsManager, topLevelTask, fileName ?? '');
+    const todo = new ObsidianTodoTask(plugin.settingsManager, topLevelTask);
     todo.setBody(body);
     for (const childTask of childTasks) {
         todo.addChecklistItem(childTask);
@@ -471,7 +471,7 @@ export async function postTaskAndChildren (
         // Const currentTaskState = await todoApi.getTask(listId, todo.id);
         let returnedTask;
         if (push) {
-            returnedTask = await todoApi.updateTaskFromToDo(listId, todo.id, todo.getTodoTask(), todo.blockLink ?? '');
+            returnedTask = await todoApi.updateTaskFromToDo(listId, todo.id, todo.getTodoTask());
             // Push the checklist items...
             todo.checklistItems = returnedTask.checklistItems;
             todo.status = returnedTask.status;
@@ -525,7 +525,6 @@ export async function getAllTasksInList (
     plugin: MsTodoSync,
     withBody: boolean,
 ) {
-    const logger = logging.getLogger('mstodo-sync.command.get');
     const now = globalThis.moment();
     const settings = plugin.settingsManager.settings;
 
