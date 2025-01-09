@@ -78,7 +78,7 @@ export class TodoApi {
         }
 
         const endpoint = '/me/todo/lists';
-        const response = await this.client.api(endpoint).filter(`contains(displayName,'${listName}')`).get(); // eslint-disable-line @typescript-eslint/no-unsafe-assignment
+        const response = await this.client.api(endpoint).filter(`contains(displayName,'${listName}')`).get();  
         const resource: TodoTaskList[] = response.value as TodoTaskList[];
         if (!resource || resource.length === 0) {
             return;

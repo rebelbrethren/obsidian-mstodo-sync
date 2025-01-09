@@ -105,8 +105,8 @@ export async function cleanupCachedTaskIds (
             } else {
                 logger.info(`Block not found in metadata cache: ${blockId}`);
                 // Clean up the block id from the settings.
-                delete plugin.settings.taskIdLookup[blockId]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
-                await plugin.settingsManager.saveSettings(); // eslint-disable-line no-await-in-loop
+                delete plugin.settings.taskIdLookup[blockId];  
+                await plugin.settingsManager.saveSettings();  
             }
         }
     }

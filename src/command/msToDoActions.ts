@@ -9,8 +9,6 @@ import { TasksDeltaCollection, TodoApi } from '../api/todoApi.js';
 import { t } from '../lib/lang.js';
 import { ObsidianTodoTask } from '../model/obsidianTodoTask.js';
 import { DateTime } from 'luxon';
-import { type PageCollection, RetryHandlerOptions, type Client, BatchRequestStep } from '@microsoft/microsoft-graph-client';
-import { ActionQueue } from 'src/lib/ActionQueue.js';
 
 
 interface ISelection {
@@ -261,8 +259,8 @@ export class MsTodoActions {
                 } else {
                     this.logger.info(`Block not found in metadata cache: ${blockId}`);
                     // Clean up the block id from the settings.
-                    delete this.settings.taskIdLookup[blockId]; // eslint-disable-line @typescript-eslint/no-dynamic-delete
-                    await this.settingsManager.saveSettings(); // eslint-disable-line no-await-in-loop
+                    delete this.settings.taskIdLookup[blockId];  
+                    await this.settingsManager.saveSettings();  
                 }
             }
         }
