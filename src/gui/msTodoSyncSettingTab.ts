@@ -1,6 +1,4 @@
-import {
-    type App, PeriodicNotes, PluginSettingTab, Setting,
-} from 'obsidian';
+import { type App, PeriodicNotes, PluginSettingTab, Setting } from 'obsidian';
 import type MsTodoSync from '../main.js';
 import { t } from '../lib/lang.js';
 import { type ILogOptions } from '../lib/logging.js';
@@ -99,7 +97,6 @@ export const DEFAULT_SETTINGS: IMsTodoSyncSettings = {
     microsoft_AuthenticationAuthority: '',
     hackingEnabled: false,
     microsoftToDoApplication_RedirectUriBase: 'http://192.168.0.137:8901/redirectpage.html',
-
 };
 
 export class MsTodoSyncSettingTab extends PluginSettingTab {
@@ -107,7 +104,7 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
     settings: IMsTodoSyncSettings;
     userNotice: IUserNotice;
 
-    constructor (app: App, plugin: MsTodoSync, userNotice: IUserNotice) {
+    constructor(app: App, plugin: MsTodoSync, userNotice: IUserNotice) {
         super(app, plugin);
         this.plugin = plugin;
         this.settings = plugin.settings;
@@ -126,7 +123,7 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
      * @param {(value: string) => unknown} changeCallback
      * @memberof MsTodoSyncSettingTab
      */
-    addTextSetting (
+    addTextSetting(
         containerElement: HTMLElement,
         title: string,
         description: string,
@@ -136,15 +133,15 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
         new Setting(containerElement)
             .setName(t(title))
             .setDesc(t(description))
-            .addText(text =>
-                text.setValue(currentValue).onChange(async value => {
+            .addText((text) =>
+                text.setValue(currentValue).onChange(async (value) => {
                     changeCallback(value);
                     await this.plugin.saveSettings();
                 }),
             );
     }
 
-    display (): void {
+    display(): void {
         const { containerEl } = this;
 
         containerEl.empty();
@@ -159,11 +156,11 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName(t('Settings_Todo_DefaultListName'))
             .setDesc(t('Settings_Todo_DefaultListNameDescription'))
-            .addText(text =>
+            .addText((text) =>
                 text
                     // .setPlaceholder('输入Todo列表名称')
                     .setValue(this.settings.todoListSync.listName ?? '')
-                    .onChange(async value => {
+                    .onChange(async (value) => {
                         this.settings.todoListSync.listName = value;
                     }),
             );
@@ -171,8 +168,8 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName(t('Settings_Todo_OpenUsingApplicationProtocolTitle'))
             .setDesc(t('Settings_Todo_OpenUsingApplicationProtocolDescription'))
-            .addToggle(toggle =>
-                toggle.setValue(this.settings.todo_OpenUsingApplicationProtocol).onChange(async value => {
+            .addToggle((toggle) =>
+                toggle.setValue(this.settings.todo_OpenUsingApplicationProtocol).onChange(async (value) => {
                     this.settings.todo_OpenUsingApplicationProtocol = value;
                     await this.plugin.saveSettings();
                 }),
@@ -186,8 +183,8 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName(t('Settings_Todo_Display_DateFormat'))
             .setDesc(t('Settings_Todo_Display_DateFormatDescription'))
-            .addText(text =>
-                text.setValue(this.settings.displayOptions_DateFormat ?? '').onChange(async value => {
+            .addText((text) =>
+                text.setValue(this.settings.displayOptions_DateFormat ?? '').onChange(async (value) => {
                     this.settings.displayOptions_DateFormat = value;
                     await this.plugin.saveSettings();
                 }),
@@ -196,8 +193,8 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName(t('Settings_Todo_Display_TimeFormat'))
             .setDesc(t('Settings_Todo_Display_TimeFormatDescription'))
-            .addText(text =>
-                text.setValue(this.settings.displayOptions_TimeFormat ?? '').onChange(async value => {
+            .addText((text) =>
+                text.setValue(this.settings.displayOptions_TimeFormat ?? '').onChange(async (value) => {
                     this.settings.displayOptions_TimeFormat = value;
                     await this.plugin.saveSettings();
                 }),
@@ -208,7 +205,7 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
             'Settings_Todo_Display_RegExToRunOnPushAgainstTitle',
             'Settings_Todo_Display_RegExToRunOnPushAgainstTitle_Description',
             this.settings.displayOptions_RegExToRunOnPushAgainstTitle,
-            async value => {
+            async (value) => {
                 this.settings.displayOptions_RegExToRunOnPushAgainstTitle = value;
             },
         );
@@ -216,8 +213,8 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName(t('Settings_Todo_Display_AddCreatedAtOnReplace'))
             .setDesc(t('Settings_Todo_Display_AddCreatedAtOnReplaceDescription'))
-            .addToggle(toggle =>
-                toggle.setValue(this.settings.displayOptions_ReplaceAddCreatedAt).onChange(async value => {
+            .addToggle((toggle) =>
+                toggle.setValue(this.settings.displayOptions_ReplaceAddCreatedAt).onChange(async (value) => {
                     this.settings.displayOptions_ReplaceAddCreatedAt = value;
                     await this.plugin.saveSettings();
                 }),
@@ -227,8 +224,8 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName(t('Settings_Todo_Display_ReplacementFormat'))
             .setDesc(t('Settings_Todo_Display_ReplacementFormatDescription'))
-            .addText(text =>
-                text.setValue(this.settings.displayOptions_ReplacementFormat).onChange(async value => {
+            .addText((text) =>
+                text.setValue(this.settings.displayOptions_ReplacementFormat).onChange(async (value) => {
                     this.settings.displayOptions_ReplacementFormat = value;
                     await this.plugin.saveSettings();
                 }),
@@ -240,7 +237,7 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
             'Settings_Todo_Display_Importance_HighName',
             'Settings_Todo_Display_Importance_HighDescription',
             this.settings.displayOptions_TaskImportance_High,
-            async value => {
+            async (value) => {
                 this.settings.displayOptions_TaskImportance_High = value;
             },
         );
@@ -251,7 +248,7 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
             'Settings_Todo_Display_Importance_NormalName',
             'Settings_Todo_Display_Importance_NormalDescription',
             this.settings.displayOptions_TaskImportance_Normal,
-            async value => {
+            async (value) => {
                 this.settings.displayOptions_TaskImportance_Normal = value;
             },
         );
@@ -262,7 +259,7 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
             'Settings_Todo_Display_Importance_LowName',
             'Settings_Todo_Display_Importance_LowDescription',
             this.settings.displayOptions_TaskImportance_Low,
-            async value => {
+            async (value) => {
                 this.settings.displayOptions_TaskImportance_Low = value;
             },
         );
@@ -273,7 +270,7 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
             'Settings_Todo_Display_Status_NotStartedName',
             'Settings_Todo_Display_Status_NotStartedDescription',
             this.settings.displayOptions_TaskStatus_NotStarted,
-            async value => {
+            async (value) => {
                 this.settings.displayOptions_TaskStatus_NotStarted = value;
             },
         );
@@ -282,7 +279,7 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
             'Settings_Todo_Display_Status_InProgressName',
             'Settings_Todo_Display_Status_InProgressDescription',
             this.settings.displayOptions_TaskStatus_InProgress,
-            async value => {
+            async (value) => {
                 this.settings.displayOptions_TaskStatus_InProgress = value;
             },
         );
@@ -291,16 +288,15 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
             'Settings_Todo_Display_Status_CompletedName',
             'Settings_Todo_Display_Status_CompletedDescription',
             this.settings.displayOptions_TaskStatus_Completed,
-            async value => {
+            async (value) => {
                 this.settings.displayOptions_TaskStatus_Completed = value;
             },
         );
 
         if (this.app.plugins.enabledPlugins.has('periodic-notes')) {
-
             containerEl.createEl('h2', { text: t('Settings_JournalFormatting') });
-            new Setting(containerEl).setName(t('Settings_JournalFormatting_PeriodicNotes')).addToggle(toggle =>
-                toggle.setValue(this.settings.diary.stayWithPN).onChange(async value => {
+            new Setting(containerEl).setName(t('Settings_JournalFormatting_PeriodicNotes')).addToggle((toggle) =>
+                toggle.setValue(this.settings.diary.stayWithPN).onChange(async (value) => {
                     if (value) {
                         const periodicNotesSettings = this.app.plugins.plugins['periodic-notes'] as PeriodicNotes;
                         if (periodicNotesSettings) {
@@ -327,14 +323,16 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
             const dateFormat = new Setting(containerEl)
                 .setName(t('Settings_JournalFormatting_DateFormat'))
                 .setDesc(
-                    `${t('Settings_JournalFormatting_DateFormatDescription')}  ${this.settings.diary.format ? globalThis.moment().format(this.settings.diary.format) : ''
+                    `${t('Settings_JournalFormatting_DateFormatDescription')}  ${
+                        this.settings.diary.format ? globalThis.moment().format(this.settings.diary.format) : ''
                     }`,
                 )
-                .addText(text =>
-                    text.setValue(this.settings.diary.format).onChange(async value => {
+                .addText((text) =>
+                    text.setValue(this.settings.diary.format).onChange(async (value) => {
                         this.settings.diary.format = value;
                         dateFormat.setDesc(
-                            `${t('Settings_JournalFormatting_DateFormatDescription')}  ${this.settings.diary.format ? globalThis.moment().format(this.settings.diary.format) : ''
+                            `${t('Settings_JournalFormatting_DateFormatDescription')}  ${
+                                this.settings.diary.format ? globalThis.moment().format(this.settings.diary.format) : ''
                             }`,
                         );
                         await this.plugin.saveSettings();
@@ -345,8 +343,8 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
             new Setting(containerEl)
                 .setName(t('Settings_JournalFormatting_Folder'))
                 .setDesc(t('Settings_JournalFormatting_FolderDescription'))
-                .addText(text =>
-                    text.setValue(this.settings.diary.folder).onChange(async value => {
+                .addText((text) =>
+                    text.setValue(this.settings.diary.folder).onChange(async (value) => {
                         this.settings.diary.format = value;
                         await this.plugin.saveSettings();
                     }),
@@ -366,7 +364,7 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
             'Settings_Authentication_ClientId',
             'Settings_Authentication_ClientId_Description',
             this.settings.microsoft_AuthenticationClientId,
-            async value => {
+            async (value) => {
                 this.settings.microsoft_AuthenticationClientId = value;
             },
         );
@@ -376,7 +374,7 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
             'Settings_Authentication_ClientId',
             'Settings_Authentication_ClientId_Description',
             this.settings.microsoft_AuthenticationClientId,
-            async value => {
+            async (value) => {
                 this.settings.microsoft_AuthenticationClientId = value;
             },
         );
@@ -394,14 +392,13 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
             'Settings_NativeApp_RedirectUriBase',
             'Settings_NativeApp_RedirectUriBase_Description',
             this.settings.microsoftToDoApplication_RedirectUriBase,
-            async value => {
+            async (value) => {
                 this.settings.microsoftToDoApplication_RedirectUriBase = value;
             },
         );
-
     }
 
-    async hide () {
+    async hide() {
         const listName = this.settings.todoListSync.listName;
 
         if (this.settings.todoListSync.listId !== undefined || !listName) {

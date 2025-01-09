@@ -2,11 +2,15 @@ import { type App, Modal } from 'obsidian';
 import { t } from '../lib/lang.js';
 
 export class MicrosoftAuthModal extends Modal {
-    constructor (app: App, private readonly deviceCode: string, private readonly authUrl: string) {
+    constructor(
+        app: App,
+        private readonly deviceCode: string,
+        private readonly authUrl: string,
+    ) {
         super(app);
     }
 
-    onOpen (): void {
+    onOpen(): void {
         const { contentEl } = this;
 
         contentEl.empty();
@@ -21,7 +25,7 @@ export class MicrosoftAuthModal extends Modal {
         contentEl.createEl('hr');
     }
 
-    onClose (): void {
+    onClose(): void {
         const { contentEl } = this;
         contentEl.empty();
     }

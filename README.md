@@ -17,7 +17,7 @@ This plugin allows you to create and synchronize tasks with Microsoft To Do.
 ### Updating plugin
 
 - Plugin can be updated using the command palette by running the command **Check for updates to all beta plugins and UPDATE**
-- Optionally, beta plugins can be configured to auto-update when starting Obsidian. This feature can be enabled in the **Obsidian42- BRAT" tab in settings.  
+- Optionally, beta plugins can be configured to auto-update when starting Obsidian. This feature can be enabled in the \*\*Obsidian42- BRAT" tab in settings.
 
 ## Development
 

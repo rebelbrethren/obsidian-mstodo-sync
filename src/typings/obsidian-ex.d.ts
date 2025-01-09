@@ -2,7 +2,6 @@
 import _ from 'obsidian';
 
 declare module 'obsidian' {
-
     interface FileCacheRecord {
         mtime: number;
         size: number;
@@ -20,7 +19,7 @@ declare module 'obsidian' {
             enabledPlugins: Set<string>;
             plugins: {
                 [pluginId: string]: Plugin | PeriodicNotes;
-            }
+            };
         };
     }
 
@@ -47,6 +46,4 @@ declare module 'obsidian' {
         isAllCollapsed: boolean;
         collapseOrExpandAllEl: HTMLDivElement;
     }
-
 }
-

@@ -12,17 +12,10 @@
         "importHelpers": true,
         "isolatedModules": true,
         "verbatimModuleSyntax": true,
-        "lib": [
-            "DOM",
-            "ESNext"
-        ],
+        "lib": ["DOM", "ESNext"],
         "allowSyntheticDefaultImports": true,
         "skipLibCheck": true
     },
-    "include": [
-        "src/**/*.ts"
-    ],
-    "exclude": [
-        "node_modules"
-    ]
+    "include": ["src/**/*.ts"],
+    "exclude": ["node_modules"]
 }

@@ -84,7 +84,7 @@ export class LogManager extends EventEmitter2 {
      * @return {*}  {LogManager}
      * @memberof LogManager
      */
-    public configure (options: ILogOptions): this {
+    public configure(options: ILogOptions): this {
         this.options = Object.assign({}, this.options, options);
         return this;
     }
@@ -96,7 +96,7 @@ export class LogManager extends EventEmitter2 {
      * @return {*}  {Logger}
      * @memberof LogManager
      */
-    public getLogger (moduleName: string): Logger {
+    public getLogger(moduleName: string): Logger {
         let currentMinimumLevel = 'none';
         let match = '';
 
@@ -117,7 +117,7 @@ export class LogManager extends EventEmitter2 {
      * @return {*}  {LogManager}
      * @memberof LogManager
      */
-    public onLogEntry (listener: (logEntry: ILogEntry) => void): this {
+    public onLogEntry(listener: (logEntry: ILogEntry) => void): this {
         this.on('log', listener);
         return this;
     }
@@ -131,12 +131,12 @@ export class LogManager extends EventEmitter2 {
      * @return {*}  {LogManager}
      * @memberof LogManager
      */
-    public registerConsoleLogger (): this {
+    public registerConsoleLogger(): this {
         if (this.consoleLoggerRegistered) {
             return this;
         }
 
-        this.onLogEntry(logEntry => {
+        this.onLogEntry((logEntry) => {
             // 2024-12-19T22:53:37.000Z - >'2024-12-19 22:53:37'
             const messageDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
@@ -214,7 +214,11 @@ export class Logger {
      * @param {string} minLevel
      * @memberof Logger
      */
-    constructor (private readonly logManager: EventEmitter2, private readonly name: string, minLevel: string) {
+    constructor(
+        private readonly logManager: EventEmitter2,
+        private readonly name: string,
+        minLevel: string,
+    ) {
         this.minLevel = this.levelToInt(minLevel);
     }
 
@@ -223,7 +227,7 @@ export class Logger {
      * @param logLevel
      * @param message
      */
-    public log (logLevel: string, message: string, objects?: unknown): void {
+    public log(logLevel: string, message: string, objects?: unknown): void {
         const level = this.levelToInt(logLevel);
         if (level < this.minLevel) {
             return;
@@ -253,23 +257,23 @@ export class Logger {
         this.logManager.emit('log', logEntry);
     }
 
-    public trace (message: string, objects?: unknown): void {
+    public trace(message: string, objects?: unknown): void {
         this.log('trace', message, objects);
     }
 
-    public debug (message: string, objects?: unknown): void {
+    public debug(message: string, objects?: unknown): void {
         this.log('debug', message, objects);
     }
 
-    public info (message: string, objects?: unknown): void {
+    public info(message: string, objects?: unknown): void {
         this.log('info', message, objects);
     }
 
-    public warn (message: string, objects?: unknown): void {
+    public warn(message: string, objects?: unknown): void {
         this.log('warn', message, objects);
     }
 
-    public error (message: string, objects?: unknown): void {
+    public error(message: string, objects?: unknown): void {
         this.log('error', message, objects);
     }
 
@@ -278,7 +282,7 @@ export class Logger {
      * @param logLevel
      * @param message
      */
-    public logWithId (logLevel: string, traceId: string, message: string, objects?: unknown): void {
+    public logWithId(logLevel: string, traceId: string, message: string, objects?: unknown): void {
         const level = this.levelToInt(logLevel);
         if (level < this.minLevel) {
             return;
@@ -295,23 +299,23 @@ export class Logger {
         this.logManager.emit('log', logEntry);
     }
 
-    public traceWithId (traceId: string, message: string, objects?: unknown): void {
+    public traceWithId(traceId: string, message: string, objects?: unknown): void {
         this.logWithId('trace', traceId, message, objects);
     }
 
-    public debugWithId (traceId: string, message: string, objects?: unknown): void {
+    public debugWithId(traceId: string, message: string, objects?: unknown): void {
         this.logWithId('debug', traceId, message, objects);
     }
 
-    public infoWithId (traceId: string, message: string, objects?: unknown): void {
+    public infoWithId(traceId: string, message: string, objects?: unknown): void {
         this.logWithId('info', traceId, message, objects);
     }
 
-    public warnWithId (traceId: string, message: string, objects?: unknown): void {
+    public warnWithId(traceId: string, message: string, objects?: unknown): void {
         this.logWithId('warn', traceId, message, objects);
     }
 
-    public errorWithId (traceId: string, message: string, objects?: unknown): void {
+    public errorWithId(traceId: string, message: string, objects?: unknown): void {
         this.logWithId('error', traceId, message, objects);
     }
 
@@ -320,7 +324,7 @@ export class Logger {
      *
      * @param minLevel
      */
-    private levelToInt (minLevel: string): number {
+    private levelToInt(minLevel: string): number {
         if (minLevel.toLowerCase() in this.levels) {
             return this.levels[minLevel.toLowerCase()];
         }
@@ -329,7 +333,7 @@ export class Logger {
     }
 }
 
-export function logCallDetails () {
+export function logCallDetails() {
     return function (target: unknown, propertyKey: string, descriptor: PropertyDescriptor) {
         const originalMethod = descriptor.value;
         const logger = logging.getLogger('mstodo-sync');
@@ -341,7 +345,8 @@ export function logCallDetails () {
             const elapsed = endTime.getTime() - startTime.getTime();
 
             logger.debug(
-                `${typeof target}:${propertyKey} called with ${arguments_.length
+                `${typeof target}:${propertyKey} called with ${
+                    arguments_.length
                 } arguments. Took: ${elapsed}ms ${JSON.stringify(arguments_)}`,
             );
             return result;
@@ -358,7 +363,7 @@ export function logCallDetails () {
  * @param {TLogLevelName} logLevel
  * @param {string} message
  */
-export function log (logLevel: TLogLevelName, message: string, objects?: unknown) {
+export function log(logLevel: TLogLevelName, message: string, objects?: unknown) {
     const logger = logging.getLogger('mstodo-sync');
 
     switch (logLevel) {
@@ -398,23 +403,23 @@ export function log (logLevel: TLogLevelName, message: string, objects?: unknown
  * @param {Plugin} plugin
  * @return {*}
  */
-export function monkeyPatchConsole (plugin: Plugin) {
+export function monkeyPatchConsole(plugin: Plugin) {
     if (!Platform.isMobile) {
         return;
     }
 
     const logFile = `${plugin.manifest.dir}/mstodo-sync-logs.txt`;
     const logs: string[] = [];
-    const logMessages
-        = (prefix: string) =>
-            (...messages: unknown[]) => {
-                logs.push(`\n[${prefix}]`);
-                for (const message of messages) {
-                    logs.push(String(message));
-                }
+    const logMessages =
+        (prefix: string) =>
+        (...messages: unknown[]) => {
+            logs.push(`\n[${prefix}]`);
+            for (const message of messages) {
+                logs.push(String(message));
+            }
 
-                plugin.app.vault.adapter.write(logFile, logs.join(' '));
-            };
+            plugin.app.vault.adapter.write(logFile, logs.join(' '));
+        };
 
     console.debug = logMessages('debug');
     console.error = logMessages('error');

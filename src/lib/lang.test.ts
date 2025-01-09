@@ -1,10 +1,9 @@
 import { t } from './lang';
 
-const mockedLangMap = '{"en": { "Notice_DeviceCodeCopiedToClipboard": "The device code has been copied to the clipboard" }, "zh": { "Notice_DeviceCodeCopiedToClipboard": "设备代码已复制到剪贴板" }}';
-
+const mockedLangMap =
+    '{"en": { "Notice_DeviceCodeCopiedToClipboard": "The device code has been copied to the clipboard" }, "zh": { "Notice_DeviceCodeCopiedToClipboard": "设备代码已复制到剪贴板" }}';
 
 describe('t function', () => {
-
     it('mock should work', () => {
         globalThis.localStorage.setItem('language', 'nonexistent_locale');
         const result = globalThis.localStorage.getItem('language');
@@ -13,7 +12,7 @@ describe('t function', () => {
 
     it('should return the translated string if it exists in the locale', () => {
         globalThis.localStorage.setItem('language', 'en');
-        globalThis.localStorage.setItem('mstd_mock_localeMap', mockedLangMap)
+        globalThis.localStorage.setItem('mstd_mock_localeMap', mockedLangMap);
         const result = t('Notice_DeviceCodeCopiedToClipboard');
         expect(result).toBe('The device code has been copied to the clipboard');
     });
@@ -25,7 +24,7 @@ describe('t function', () => {
 
     it('should log an error if the locale is not found', () => {
         globalThis.localStorage.setItem('language', 'nonexistent_locale');
-        const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
+        const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
         t('Notice_DeviceCodeCopiedToClipboard');
         expect(consoleErrorSpy).toHaveBeenCalledWith('Error: locale not found', 'nonexistent_locale');
         consoleErrorSpy.mockRestore();
@@ -43,4 +42,3 @@ describe('t function', () => {
         expect(result).toBe('设备代码已复制到剪贴板');
     });
 });
-

@@ -146,7 +146,10 @@ export class ObsidianTodoTask implements TodoTask {
      * @param line - The line of text representing the task.
      * @param fileName - The name of the file where the task is located.
      */
-    constructor (private readonly settingsManager: ISettingsManager, line: string) {
+    constructor(
+        private readonly settingsManager: ISettingsManager,
+        line: string,
+    ) {
         this.originalTitle = line;
 
         this.title = line.trim();
@@ -162,13 +165,24 @@ export class ObsidianTodoTask implements TodoTask {
         // This will strip out the created date if in title.
         if (this.title.includes(settingsManager.settings.displayOptions_TaskCreatedPrefix)) {
             this.title = this.title
-                .replaceAll(new RegExp(`${settingsManager.settings.displayOptions_TaskCreatedPrefix} ?\\[\\[.*]]`, 'g'), '')
-                .replaceAll(new RegExp(`${settingsManager.settings.displayOptions_TaskCreatedPrefix} ?\\d{4}-\\d{2}-\\d{2}`, 'g'), '')
+                .replaceAll(
+                    new RegExp(`${settingsManager.settings.displayOptions_TaskCreatedPrefix} ?\\[\\[.*]]`, 'g'),
+                    '',
+                )
+                .replaceAll(
+                    new RegExp(
+                        `${settingsManager.settings.displayOptions_TaskCreatedPrefix} ?\\d{4}-\\d{2}-\\d{2}`,
+                        'g',
+                    ),
+                    '',
+                )
                 .trim();
         }
 
         if (this.title.includes(settingsManager.settings.displayOptions_TaskDuePrefix)) {
-            const specifiedDueDate = this.title.match(new RegExp(`${settingsManager.settings.displayOptions_TaskDuePrefix} ?(\\d{4}-\\d{2}-\\d{2})`, 'g'));
+            const specifiedDueDate = this.title.match(
+                new RegExp(`${settingsManager.settings.displayOptions_TaskDuePrefix} ?(\\d{4}-\\d{2}-\\d{2})`, 'g'),
+            );
 
             if (specifiedDueDate) {
                 this.dueDateTime = {
@@ -179,7 +193,10 @@ export class ObsidianTodoTask implements TodoTask {
 
             this.title = this.title
                 .replaceAll(new RegExp(`${settingsManager.settings.displayOptions_TaskDuePrefix} ?\\[\\[.*]]`, 'g'), '')
-                .replaceAll(new RegExp(`${settingsManager.settings.displayOptions_TaskDuePrefix} ?\\d{4}-\\d{2}-\\d{2}`, 'g'), '')
+                .replaceAll(
+                    new RegExp(`${settingsManager.settings.displayOptions_TaskDuePrefix} ?\\d{4}-\\d{2}-\\d{2}`, 'g'),
+                    '',
+                )
                 .trim();
         }
 
@@ -192,8 +209,10 @@ export class ObsidianTodoTask implements TodoTask {
 
         // Remove any items the user does not want pushed to Microsoft To Do
         if (settingsManager.settings.displayOptions_RegExToRunOnPushAgainstTitle !== '') {
-            this.title = this.title
-                .replaceAll(new RegExp(`${settingsManager.settings.displayOptions_RegExToRunOnPushAgainstTitle}`, 'g'), '');
+            this.title = this.title.replaceAll(
+                new RegExp(`${settingsManager.settings.displayOptions_RegExToRunOnPushAgainstTitle}`, 'g'),
+                '',
+            );
         }
 
         this.body = {
@@ -213,10 +232,9 @@ export class ObsidianTodoTask implements TodoTask {
         this.logger.debug(`Created: '${this.title}'`);
     }
 
-    public getRedirectUrl (): string {
+    public getRedirectUrl(): string {
         return `${this.settingsManager.settings.microsoftToDoApplication_RedirectUriBase}?vault=${this.settingsManager.vaultName}&block=${this.blockLink}`;
     }
-
 
     /**
      * Cache the ID internally and generate block link.
@@ -225,7 +243,7 @@ export class ObsidianTodoTask implements TodoTask {
      * @return {*}  {Promise<void>}
      * @memberof ObsidianTodoTask
      */
-    public async cacheTaskId (id: string): Promise<void> {
+    public async cacheTaskId(id: string): Promise<void> {
         this.settingsManager.settings.taskIdIndex += 1;
 
         const index = `MSTD${Math.random().toString(20).slice(2, 6)}${this.settingsManager.settings.taskIdIndex
@@ -245,7 +263,7 @@ export class ObsidianTodoTask implements TodoTask {
      * @param withChecklist - Whether to include checklist items in the returned task.
      * @returns The task as a TodoTask object.
      */
-    public getTodoTask (withChecklist = false): TodoTask {
+    public getTodoTask(withChecklist = false): TodoTask {
         const toDo: TodoTask = {
             title: this.title,
         };
@@ -282,7 +300,7 @@ export class ObsidianTodoTask implements TodoTask {
      * @param withChecklist - Whether to include checklist items in the returned task.
      * @returns The task as a TodoTask object.
      */
-    public updateFromTodoTask (remoteTask: TodoTask) {
+    public updateFromTodoTask(remoteTask: TodoTask) {
         this.title = remoteTask.title;
 
         if (remoteTask.body?.content && remoteTask.body.content.length > 0) {
@@ -315,7 +333,7 @@ export class ObsidianTodoTask implements TodoTask {
      * Set the body content of the task.
      * @param body - The body content to set.
      */
-    public setBody (body: string) {
+    public setBody(body: string) {
         this.body = {
             content: body,
             contentType: 'text',
@@ -326,7 +344,7 @@ export class ObsidianTodoTask implements TodoTask {
      * Add a checklist item to the task.
      * @param item - The checklist item to add.
      */
-    public addChecklistItem (item: string) {
+    public addChecklistItem(item: string) {
         this.checklistItems ||= [];
 
         this.checklistItems.push({
@@ -343,7 +361,7 @@ export class ObsidianTodoTask implements TodoTask {
      * @return {*}  {string}
      * @memberof ObsidianTodoTask
      */
-    public getMarkdownTask (singleLine: boolean): string {
+    public getMarkdownTask(singleLine: boolean): string {
         let output: string;
 
         // Format and display the task which is the first line.
@@ -354,7 +372,9 @@ export class ObsidianTodoTask implements TodoTask {
             .replace(TASK_REGEX, this.title?.trim() ?? '')
             .replace(STATUS_SYMBOL_REGEX, this.getStatusIndicator());
 
-        output = output.includes(priorityIndicator) ? output.replace(IMPORTANCE_REGEX, '') : output.replace(IMPORTANCE_REGEX, priorityIndicator);
+        output = output.includes(priorityIndicator)
+            ? output.replace(IMPORTANCE_REGEX, '')
+            : output.replace(IMPORTANCE_REGEX, priorityIndicator);
 
         if (this.dueDateTime?.dateTime) {
             const formattedDueDate = globalThis
@@ -384,7 +404,8 @@ export class ObsidianTodoTask implements TodoTask {
 
         // Add in the body if it exists and indented by two spaces.
         if (this.body?.content && this.body.content.length > 0) {
-            for (const bodyLine of this.body?.content.split('\n')) { // eslint-disable-line no-unsafe-optional-chaining
+            for (const bodyLine of this.body?.content.split('\n')) {
+                // eslint-disable-line no-unsafe-optional-chaining
                 if (bodyLine.trim().length > 0) {
                     formattedBody += '  ' + bodyLine + '\n';
                 }
@@ -394,7 +415,9 @@ export class ObsidianTodoTask implements TodoTask {
 
         if (this.checklistItems && this.checklistItems.length > 0) {
             for (const item of this.checklistItems) {
-                formattedChecklist += item.isChecked ? '  - [x] ' + item.displayName + '\n' : '  - [ ] ' + item.displayName + '\n';
+                formattedChecklist += item.isChecked
+                    ? '  - [x] ' + item.displayName + '\n'
+                    : '  - [ ] ' + item.displayName + '\n';
             }
         }
         // This.logger.debug(`formattedChecklist: '${formattedChecklist}'`);
@@ -409,7 +432,7 @@ export class ObsidianTodoTask implements TodoTask {
      * Check the task title for a status indicator and update the status accordingly.
      * @param line - The line of text representing the task.
      */
-    private checkForStatus (line: string) {
+    private checkForStatus(line: string) {
         const regex = /\[(.)]/;
 
         const m = regex.exec(line);
@@ -425,7 +448,7 @@ export class ObsidianTodoTask implements TodoTask {
      * Check the task title for an importance indicator and update the importance accordingly.
      * @param line - The line of text representing the task.
      */
-    private checkForImportance (line: string) {
+    private checkForImportance(line: string) {
         this.importance = 'normal';
 
         if (line.includes(this.settingsManager.settings.displayOptions_TaskImportance_Low)) {
@@ -441,7 +464,7 @@ export class ObsidianTodoTask implements TodoTask {
      * Get the priority indicator based on the task's importance.
      * @returns The priority indicator as a string.
      */
-    private getPriorityIndicator (): string {
+    private getPriorityIndicator(): string {
         switch (this.importance) {
             case 'normal': {
                 return this.settingsManager.settings.displayOptions_TaskImportance_Normal;
@@ -465,7 +488,7 @@ export class ObsidianTodoTask implements TodoTask {
      * Get the status indicator based on the task's status.
      * @returns The status indicator as a string.
      */
-    private getStatusIndicator (): string {
+    private getStatusIndicator(): string {
         switch (this.status) {
             case 'notStarted': {
                 return this.settingsManager.settings.displayOptions_TaskStatus_NotStarted;
@@ -489,7 +512,7 @@ export class ObsidianTodoTask implements TodoTask {
      * Check the task title for a block link and update the block link and ID accordingly.
      * @param line - The line of text representing the task.
      */
-    private checkForBlockLink (line: string) {
+    private checkForBlockLink(line: string) {
         const blockLinkRegex = /\^(?!.*\^)([A-Za-z\d]+)/gm;
         const blockLinkMatch = blockLinkRegex.exec(line);
         if (blockLinkMatch) {
@@ -509,7 +532,7 @@ export class ObsidianTodoTask implements TodoTask {
      * Get the clean title of the task, without any block links or status indicators.
      * @returns The clean title as a string.
      */
-    public get cleanTitle (): string {
+    public get cleanTitle(): string {
         return '';
     }
 
@@ -517,7 +540,7 @@ export class ObsidianTodoTask implements TodoTask {
      * Check if the task has a block link.
      * @returns True if the task has a block link, false otherwise.
      */
-    public get hasBlockLink (): boolean {
+    public get hasBlockLink(): boolean {
         return this.blockLink !== undefined && this.blockLink.length > 0;
     }
 
@@ -525,7 +548,7 @@ export class ObsidianTodoTask implements TodoTask {
      * Check if the task has an id for the remote task.
      * @returns True if the task has a id set, false otherwise.
      */
-    public get hasId (): boolean {
+    public get hasId(): boolean {
         return this.id !== undefined && this.id.length > 0;
     }
 }

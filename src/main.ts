@@ -1,11 +1,14 @@
-import {
-    type CachedMetadata, type Editor, type MarkdownView, Plugin,
-} from 'obsidian';
+import { type CachedMetadata, type Editor, type MarkdownView, Plugin } from 'obsidian';
 import { TodoApi } from './api/todoApi.js';
 import { DEFAULT_SETTINGS, MsTodoSyncSettingTab, type IMsTodoSyncSettings } from './gui/msTodoSyncSettingTab.js';
 import {
     cleanupCachedTaskIds,
-    createTodayTasks, getAllTasksInList, getTask, getTaskDelta, postTask, postTaskAndChildren,
+    createTodayTasks,
+    getAllTasksInList,
+    getTask,
+    getTaskDelta,
+    postTask,
+    postTaskAndChildren,
 } from './command/msTodoCommand.js';
 import { t } from './lib/lang.js';
 import { log, logging } from './lib/logging.js';
@@ -23,11 +26,11 @@ export default class MsTodoSync extends Plugin {
     public msToDoActions: MsTodoActions;
 
     // Pulls the meta data for the a page to help with list processing.
-    getPageMetadata (path: string): CachedMetadata | undefined {
+    getPageMetadata(path: string): CachedMetadata | undefined {
         return this.app.metadataCache.getCache(path) ?? undefined;
     }
 
-    async onload () {
+    async onload() {
         logging.registerConsoleLogger();
 
         log('info', `loading plugin "${this.manifest.name}" v${this.manifest.version}`);
@@ -66,15 +69,15 @@ export default class MsTodoSync extends Plugin {
         this.msToDoActions = new MsTodoActions(this, this.settingsManager, this.todoApi);
     }
 
-    async onunload () {
+    async onunload() {
         log('info', `unloading plugin "${this.manifest.name}" v${this.manifest.version}`);
     }
 
-    async loadSettings () {
+    async loadSettings() {
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
     }
 
-    async saveSettings () {
+    async saveSettings() {
         await this.saveData(this.settings);
     }
 
@@ -92,7 +95,7 @@ export default class MsTodoSync extends Plugin {
      *
      * @private
      */
-    private registerCommands () {
+    private registerCommands() {
         this.addCommand({
             id: 'only-create-task',
             name: t('CommandName_PushToMsTodo'),
@@ -144,7 +147,7 @@ export default class MsTodoSync extends Plugin {
      *
      * @private
      */
-    private registerMenuEditorOptions () {
+    private registerMenuEditorOptions() {
         this.registerEvent(
             this.app.workspace.on('editor-menu', (menu, editor, _view) => {
                 menu.addSeparator();
@@ -156,28 +159,24 @@ export default class MsTodoSync extends Plugin {
                 //     );
                 // });
 
-                menu.addItem(item => {
-                    item.setTitle(t('EditorMenu_SyncToTodoAndReplace')).onClick(
-                        async () => {
-                            await this.pushTaskToMsTodoAndUpdatePage(editor);
-                        },
-                    );
+                menu.addItem((item) => {
+                    item.setTitle(t('EditorMenu_SyncToTodoAndReplace')).onClick(async () => {
+                        await this.pushTaskToMsTodoAndUpdatePage(editor);
+                    });
                 });
 
-                menu.addItem(item => {
-                    item.setTitle(t('EditorMenu_FetchFromRemote')).onClick(
-                        async () => {
-                            await getTask(
-                                this.todoApi,
-                                this.settings.todoListSync?.listId,
-                                editor,
-                                this.app.workspace.getActiveFile()?.path,
-                                this,
-                            );
-                        },
-                    );
+                menu.addItem((item) => {
+                    item.setTitle(t('EditorMenu_FetchFromRemote')).onClick(async () => {
+                        await getTask(
+                            this.todoApi,
+                            this.settings.todoListSync?.listId,
+                            editor,
+                            this.app.workspace.getActiveFile()?.path,
+                            this,
+                        );
+                    });
                 });
-                menu.addItem(item => {
+                menu.addItem((item) => {
                     item.setTitle('Sync Task with details (Push)').onClick(async () => {
                         await postTaskAndChildren(
                             this.todoApi,
@@ -190,22 +189,20 @@ export default class MsTodoSync extends Plugin {
                     });
                 });
 
-                menu.addItem(item => {
-                    item.setTitle('Sync Task with details (Pull)').onClick(
-                        async () => {
-                            await postTaskAndChildren(
-                                this.todoApi,
-                                this.settings.todoListSync?.listId,
-                                editor,
-                                this.app.workspace.getActiveFile()?.path,
-                                this,
-                                false,
-                            );
-                        },
-                    );
+                menu.addItem((item) => {
+                    item.setTitle('Sync Task with details (Pull)').onClick(async () => {
+                        await postTaskAndChildren(
+                            this.todoApi,
+                            this.settings.todoListSync?.listId,
+                            editor,
+                            this.app.workspace.getActiveFile()?.path,
+                            this,
+                            false,
+                        );
+                    });
                 });
 
-                menu.addItem(item => {
+                menu.addItem((item) => {
                     item.setTitle(t('EditorMenu_OpenToDo')).onClick(async () => {
                         this.msToDoActions.viewTaskInTodo(editor);
                     });
@@ -217,86 +214,59 @@ export default class MsTodoSync extends Plugin {
             this.registerEvent(
                 this.app.workspace.on('editor-menu', (menu, editor, _view) => {
                     menu.addSeparator();
-                    menu.addItem(item => {
+                    menu.addItem((item) => {
                         item.setTitle('Testing Commands Enabled');
                     });
-                    menu.addItem(item => {
-                        item.setTitle('Update Task Cache').onClick(
-                            async () => {
-                                await getTaskDelta(
-                                    this.todoApi,
-                                    this.settings.todoListSync?.listId,
-                                    this,
-                                );
-                            },
-                        );
+                    menu.addItem((item) => {
+                        item.setTitle('Update Task Cache').onClick(async () => {
+                            await getTaskDelta(this.todoApi, this.settings.todoListSync?.listId, this);
+                        });
                     });
 
-                    menu.addItem(item => {
-                        item.setTitle('Reset Task Cache').onClick(
-                            async () => {
-                                await getTaskDelta(
-                                    this.todoApi,
-                                    this.settings.todoListSync?.listId,
-                                    this,
-                                    true,
-                                );
-                            },
-                        );
+                    menu.addItem((item) => {
+                        item.setTitle('Reset Task Cache').onClick(async () => {
+                            await getTaskDelta(this.todoApi, this.settings.todoListSync?.listId, this, true);
+                        });
                     });
 
-                    menu.addItem(item => {
-                        item.setTitle('Cleanup Local Task Lookup Table').onClick(
-                            async () => {
-                                await cleanupCachedTaskIds(
-                                    this,
-                                );
-                            },
-                        );
+                    menu.addItem((item) => {
+                        item.setTitle('Cleanup Local Task Lookup Table').onClick(async () => {
+                            await cleanupCachedTaskIds(this);
+                        });
                     });
 
-                    menu.addItem(item => {
-                        item.setTitle('Insert all tasks with body').onClick(
-                            async () => {
-                                await getAllTasksInList(
-                                    this.todoApi,
-                                    this.settings.todoListSync?.listId,
-                                    editor,
-                                    this,
-                                    true,
-                                );
-                            },
-                        );
+                    menu.addItem((item) => {
+                        item.setTitle('Insert all tasks with body').onClick(async () => {
+                            await getAllTasksInList(
+                                this.todoApi,
+                                this.settings.todoListSync?.listId,
+                                editor,
+                                this,
+                                true,
+                            );
+                        });
                     });
 
-                    menu.addItem(item => {
-                        item.setTitle('Insert all tasks').onClick(
-                            async () => {
-                                await getAllTasksInList(
-                                    this.todoApi,
-                                    this.settings.todoListSync?.listId,
-                                    editor,
-                                    this,
-                                    false,
-                                );
-                            },
-                        );
+                    menu.addItem((item) => {
+                        item.setTitle('Insert all tasks').onClick(async () => {
+                            await getAllTasksInList(
+                                this.todoApi,
+                                this.settings.todoListSync?.listId,
+                                editor,
+                                this,
+                                false,
+                            );
+                        });
                     });
 
-                    menu.addItem(item => {
-                        item.setTitle('Sync Vault').onClick(
-                            async () => {
-                                this.msToDoActions.syncVault(
-                                    this.settings.todoListSync?.listId,
-                                );
-                            },
-                        );
+                    menu.addItem((item) => {
+                        item.setTitle('Sync Vault').onClick(async () => {
+                            this.msToDoActions.syncVault(this.settings.todoListSync?.listId);
+                        });
                     });
                 }),
             );
         }
-
-
     }
 
     /**
@@ -309,7 +279,7 @@ export default class MsTodoSync extends Plugin {
      * @param editor - The editor instance containing the task to be posted.
      * @returns A promise that resolves when the task has been posted and the page updated.
      */
-    private async pushTaskToMsTodoAndUpdatePage (editor: Editor) {
+    private async pushTaskToMsTodoAndUpdatePage(editor: Editor) {
         await this.msToDoActions.postTask(
             this.settings.todoListSync?.listId,
             editor,
@@ -324,7 +294,7 @@ export default class MsTodoSync extends Plugin {
      * @param editor - The editor instance containing the task to be pushed.
      * @returns A promise that resolves when the task has been successfully pushed.
      */
-    private async pushTaskToMsTodo (editor: Editor) {
+    private async pushTaskToMsTodo(editor: Editor) {
         await this.msToDoActions.postTask(
             this.settings.todoListSync?.listId,
             editor,
@@ -333,4 +303,3 @@ export default class MsTodoSync extends Plugin {
         );
     }
 }
-

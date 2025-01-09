@@ -1,4 +1,9 @@
-import { type PageCollection, RetryHandlerOptions, type Client, BatchRequestStep } from '@microsoft/microsoft-graph-client';
+import {
+    type PageCollection,
+    RetryHandlerOptions,
+    type Client,
+    BatchRequestStep,
+} from '@microsoft/microsoft-graph-client';
 import { type TodoTask, type TodoTaskList } from '@microsoft/microsoft-graph-types';
 import { t } from '../lib/lang.js';
 import { logging } from '../lib/logging.js';
@@ -8,7 +13,10 @@ export class TasksDeltaCollection {
     /**
      *
      */
-    constructor (public allTasks: TodoTask[], public deltaLink: string) { }
+    constructor(
+        public allTasks: TodoTask[],
+        public deltaLink: string,
+    ) {}
 }
 
 export class TodoApi {
@@ -17,19 +25,25 @@ export class TodoApi {
     private client: Client;
     private readonly enableRetryOptions = false;
 
-    constructor (clientProvider: MicrosoftClientProvider) {
+    constructor(clientProvider: MicrosoftClientProvider) {
         if (this.enableRetryOptions) {
-            clientProvider.getClientWithMiddleware().then(client => {
-                this.client = client;
-            }).catch(() => {
-                throw new Error(t('Notice_UnableToAcquireClient'));
-            });
+            clientProvider
+                .getClientWithMiddleware()
+                .then((client) => {
+                    this.client = client;
+                })
+                .catch(() => {
+                    throw new Error(t('Notice_UnableToAcquireClient'));
+                });
         } else {
-            clientProvider.getClient().then(client => {
-                this.client = client;
-            }).catch(() => {
-                throw new Error(t('Notice_UnableToAcquireClient'));
-            });
+            clientProvider
+                .getClient()
+                .then((client) => {
+                    this.client = client;
+                })
+                .catch(() => {
+                    throw new Error(t('Notice_UnableToAcquireClient'));
+                });
         }
     }
 
@@ -39,11 +53,11 @@ export class TodoApi {
      * @param searchPattern - An optional search pattern to filter tasks within the lists.
      * @returns A promise that resolves to an array of `TodoTaskList` objects, each containing their respective tasks, or `undefined` if no lists are found.
      */
-    async getLists (searchPattern?: string): Promise<TodoTaskList[] | undefined> {
+    async getLists(searchPattern?: string): Promise<TodoTaskList[] | undefined> {
         const endpoint = '/me/todo/lists';
         const todoLists = (await this.client.api(endpoint).get()).value as TodoTaskList[];
         return Promise.all(
-            todoLists.map(async taskList => {
+            todoLists.map(async (taskList) => {
                 try {
                     const containedTasks = await this.getListTasks(taskList.id, searchPattern);
                     return {
@@ -72,13 +86,13 @@ export class TodoApi {
      *
      * @throws Will throw an error if the API request fails.
      */
-    async getListIdByName (listName: string | undefined): Promise<string | undefined> {
+    async getListIdByName(listName: string | undefined): Promise<string | undefined> {
         if (!listName) {
             return;
         }
 
         const endpoint = '/me/todo/lists';
-        const response = await this.client.api(endpoint).filter(`contains(displayName,'${listName}')`).get();  
+        const response = await this.client.api(endpoint).filter(`contains(displayName,'${listName}')`).get();
         const resource: TodoTaskList[] = response.value as TodoTaskList[];
         if (!resource || resource.length === 0) {
             return;
@@ -94,7 +108,7 @@ export class TodoApi {
      * @param listId - The ID of the TodoTaskList to retrieve. If undefined, the function returns undefined.
      * @returns A promise that resolves to the TodoTaskList if found, or undefined if the listId is not provided.
      */
-    async getList (listId: string | undefined): Promise<TodoTaskList | undefined> {
+    async getList(listId: string | undefined): Promise<TodoTaskList | undefined> {
         if (!listId) {
             return;
         }
@@ -109,7 +123,7 @@ export class TodoApi {
      * @param displayName - The name to be displayed for the new task list. If undefined, the task list will not be created.
      * @returns A promise that resolves to the created TodoTaskList object, or undefined if the display name is not provided.
      */
-    async createTaskList (displayName: string | undefined): Promise<TodoTaskList | undefined> {
+    async createTaskList(displayName: string | undefined): Promise<TodoTaskList | undefined> {
         if (!displayName) {
             return;
         }
@@ -126,7 +140,7 @@ export class TodoApi {
      * @param searchText - Optional search text to filter the tasks. If not provided, the function will return immediately.
      * @returns A promise that resolves to an array of `TodoTask` objects, or undefined if the listId or searchText is not provided, or if an error occurs.
      */
-    async getListTasks (listId: string | undefined, searchText?: string): Promise<TodoTask[] | undefined> {
+    async getListTasks(listId: string | undefined, searchText?: string): Promise<TodoTask[] | undefined> {
         if (!listId) {
             return;
         }
@@ -140,7 +154,7 @@ export class TodoApi {
             .api(endpoint)
             .filter(searchText)
             .get()
-            .catch(error => {
+            .catch((error) => {
                 this.logger.error('Failed to get tasks for list', error);
                 throw new Error(t('Notice_UnableToAcquireTaskFromConfiguredList'));
             });
@@ -158,7 +172,7 @@ export class TodoApi {
      * @param taskId - The ID of the task to retrieve.
      * @returns A promise that resolves to the `TodoTask` object if found, or `undefined` if not found.
      */
-    async getTask (listId: string, taskId: string): Promise<TodoTask | undefined> {
+    async getTask(listId: string, taskId: string): Promise<TodoTask | undefined> {
         const endpoint = `/me/todo/lists/${listId}/tasks/${taskId}`;
         return (await this.client
             .api(endpoint)
@@ -168,24 +182,24 @@ export class TodoApi {
 
     /**
      * Retrieves the delta of tasks for a specified list.
-     * 
+     *
      * @param listId - The ID of the task list.
      * @param deltaLink - The delta link to use for fetching changes. If empty, fetches all tasks.
      * @returns A promise that resolves to a `TasksDeltaCollection` containing the tasks and the new delta link.
-     * 
+     *
      * @remarks
      * This method uses the Microsoft Graph API to fetch tasks and their changes. It handles pagination and retries.
-     * 
+     *
      * @throws Will throw an error if the API request fails.
      */
-    async getTasksDelta (listId: string, deltaLink: string): Promise<TasksDeltaCollection> {
+    async getTasksDelta(listId: string, deltaLink: string): Promise<TasksDeltaCollection> {
         const endpoint = deltaLink === '' ? `/me/todo/lists/${listId}/tasks/delta` : deltaLink;
         const allTasks: TodoTask[] = [];
 
-        let response: PageCollection = await this.client
+        let response: PageCollection = (await this.client
             .api(endpoint)
             .middlewareOptions([new RetryHandlerOptions(3, 3)])
-            .get() as PageCollection;
+            .get()) as PageCollection;
 
         while (response.value.length > 0) {
             for (const task of response.value as TodoTask[]) {
@@ -215,7 +229,7 @@ export class TodoApi {
      * @param toDo - The task details to be created.
      * @returns A promise that resolves to the created TodoTask.
      */
-    async createTaskFromToDo (listId: string | undefined, toDo: TodoTask): Promise<TodoTask> {
+    async createTaskFromToDo(listId: string | undefined, toDo: TodoTask): Promise<TodoTask> {
         const endpoint = `/me/todo/lists/${listId}/tasks`;
         this.logger.debug('Creating task from endpoint', endpoint);
         const createdToDo = await this.client.api(endpoint).post(toDo);
@@ -230,15 +244,19 @@ export class TodoApi {
      * @param toDo - The updated task details.
      * @returns A promise that resolves to the updated task.
      */
-    async updateTaskFromToDo (listId: string | undefined, taskId: string, toDo: TodoTask): Promise<TodoTask> {
+    async updateTaskFromToDo(listId: string | undefined, taskId: string, toDo: TodoTask): Promise<TodoTask> {
         const endpoint = `/me/todo/lists/${listId}/tasks/${taskId}`;
-
 
         toDo.linkedResources = undefined;
         return this.client.api(endpoint).patch(toDo);
     }
 
-    async createLinkedResource (listId: string | undefined, taskId: string, blockId: string, webUrl: string): Promise<any> {
+    async createLinkedResource(
+        listId: string | undefined,
+        taskId: string,
+        blockId: string,
+        webUrl: string,
+    ): Promise<any> {
         const endpoint = `/me/todo/lists/${listId}/tasks/${taskId}/linkedResources`;
 
         const updatedLinkedResource = {
@@ -250,7 +268,13 @@ export class TodoApi {
         return this.client.api(endpoint).post(updatedLinkedResource);
     }
 
-    async updateLinkedResource (listId: string | undefined, taskId: string, linkedResourceId: string, blockId: string, webUrl: string): Promise<any> {
+    async updateLinkedResource(
+        listId: string | undefined,
+        taskId: string,
+        linkedResourceId: string,
+        blockId: string,
+        webUrl: string,
+    ): Promise<any> {
         const endpoint = `/me/todo/lists/${listId}/tasks/${taskId}/linkedResources/${linkedResourceId}`;
 
         const updatedLinkedResource = {
@@ -264,5 +288,3 @@ export class TodoApi {
         return response;
     }
 }
-
-

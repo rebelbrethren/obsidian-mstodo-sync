@@ -9,7 +9,7 @@ const localeMap: Record<string, Translations> = {
     zh: zhCN,
 };
 
-export function getLocaleMap (): Record<string, Translations> {
+export function getLocaleMap(): Record<string, Translations> {
     if (globalThis.localStorage.getItem('mstd_mock_localeMap')) {
         const mockLocaleMap = globalThis.localStorage.getItem('mstd_mock_localeMap');
         return mockLocaleMap ? JSON.parse(mockLocaleMap) : localeMap;
@@ -17,23 +17,21 @@ export function getLocaleMap (): Record<string, Translations> {
     return localeMap;
 }
 
-function getLanguage (): string | null {
+function getLanguage(): string | null {
     return globalThis.localStorage.getItem('language');
 }
 
-function getLocale (language: string): Translations {
+function getLocale(language: string): Translations {
     const localeMap = getLocaleMap();
     return localeMap[language];
 }
 
-export function t (string_: string): string {
+export function t(string_: string): string {
     const language = getLanguage();
     const locale = getLocale(language ?? 'en');
     if (!locale) {
         console.error('Error: locale not found', language);
     }
-
-
 
     return locale?.[string_] || string_;
 }
