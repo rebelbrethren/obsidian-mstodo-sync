@@ -1,4 +1,4 @@
-import { type CachedMetadata, type Editor, type MarkdownView, Plugin } from 'obsidian';
+import { type CachedMetadata, type Editor, type MarkdownFileInfo, type MarkdownView, Plugin } from 'obsidian';
 import { TodoApi } from './api/todoApi.js';
 import { DEFAULT_SETTINGS, MsTodoSyncSettingTab, type IMsTodoSyncSettings } from './gui/msTodoSyncSettingTab.js';
 import {
@@ -7,23 +7,22 @@ import {
     getAllTasksInList,
     getTask,
     getTaskDelta,
-    postTask,
     postTaskAndChildren,
 } from './command/msTodoCommand.js';
 import { t } from './lib/lang.js';
 import { log, logging } from './lib/logging.js';
 import { SettingsManager } from './utils/settingsManager.js';
 import { MicrosoftClientProvider } from './api/microsoftClientProvider.js';
-import { IUserNotice, UserNotice } from './lib/userNotice.js';
+import { type IUserNotice, UserNotice } from './lib/userNotice.js';
 import { MsTodoActions } from './command/msToDoActions.js';
 
 export default class MsTodoSync extends Plugin {
-    settings: IMsTodoSyncSettings;
-    userNotice: IUserNotice;
-    public todoApi: TodoApi;
-    public settingsManager: SettingsManager;
-    public microsoftClientProvider: MicrosoftClientProvider;
-    public msToDoActions: MsTodoActions;
+    settings!: IMsTodoSyncSettings;
+    userNotice!: IUserNotice;
+    public todoApi!: TodoApi;
+    public settingsManager!: SettingsManager;
+    public microsoftClientProvider!: MicrosoftClientProvider;
+    public msToDoActions!: MsTodoActions;
 
     // Pulls the meta data for the a page to help with list processing.
     getPageMetadata(path: string): CachedMetadata | undefined {
@@ -99,7 +98,7 @@ export default class MsTodoSync extends Plugin {
         this.addCommand({
             id: 'only-create-task',
             name: t('CommandName_PushToMsTodo'),
-            editorCallback: async (editor: Editor, _view: MarkdownView) => {
+            editorCallback: async (editor: Editor, _view: MarkdownView | MarkdownFileInfo) => {
                 await this.pushTaskToMsTodo(editor);
             },
         });
@@ -109,7 +108,7 @@ export default class MsTodoSync extends Plugin {
         this.addCommand({
             id: 'create-task-replace',
             name: t('CommandName_PushToMsTodoAndReplace'),
-            editorCallback: async (editor: Editor, _view: MarkdownView) => {
+            editorCallback: async (editor: Editor, _view: MarkdownView | MarkdownFileInfo) => {
                 await this.pushTaskToMsTodoAndUpdatePage(editor);
             },
         });
@@ -118,7 +117,7 @@ export default class MsTodoSync extends Plugin {
         this.addCommand({
             id: 'open-task-link',
             name: t('CommandName_OpenToDo'),
-            editorCallback: async (editor: Editor, _view: MarkdownView) => {
+            editorCallback: async (editor: Editor, _view: MarkdownView | MarkdownFileInfo) => {
                 this.msToDoActions.viewTaskInTodo(editor);
             },
         });
@@ -126,10 +125,20 @@ export default class MsTodoSync extends Plugin {
         this.addCommand({
             id: 'add-microsoft-todo',
             name: t('CommandName_InsertSummary'),
-            editorCallback: async (editor: Editor, _view: MarkdownView) => {
+            editorCallback: async (editor: Editor, _view: MarkdownView | MarkdownFileInfo) => {
                 await createTodayTasks(this.todoApi, this.settings, editor);
             },
         });
+
+        if (this.settings.hackingEnabled) {
+            this.addCommand({
+                id: 'sync-vault',
+                name: 'Sync Vault',
+                callback: async () => {
+                    this.msToDoActions.syncVault(this.settings.todoListSync?.listId);
+                },
+            });
+        }
     }
 
     /**
@@ -264,6 +273,11 @@ export default class MsTodoSync extends Plugin {
                             this.msToDoActions.syncVault(this.settings.todoListSync?.listId);
                         });
                     });
+                    menu.addItem((item) => {
+                        item.setTitle('Add Missing Tasks').onClick(async () => {
+                            this.msToDoActions.addMissingTasksToVault(this.settings.todoListSync?.listId, editor);
+                        });
+                    });
                 }),
             );
         }
@@ -280,12 +294,7 @@ export default class MsTodoSync extends Plugin {
      * @returns A promise that resolves when the task has been posted and the page updated.
      */
     private async pushTaskToMsTodoAndUpdatePage(editor: Editor) {
-        await this.msToDoActions.postTask(
-            this.settings.todoListSync?.listId,
-            editor,
-            this.app.workspace.getActiveFile()?.path,
-            true,
-        );
+        await this.msToDoActions.postTask(this.settings.todoListSync?.listId, editor, true);
     }
 
     /**
@@ -295,11 +304,6 @@ export default class MsTodoSync extends Plugin {
      * @returns A promise that resolves when the task has been successfully pushed.
      */
     private async pushTaskToMsTodo(editor: Editor) {
-        await this.msToDoActions.postTask(
-            this.settings.todoListSync?.listId,
-            editor,
-            this.app.workspace.getActiveFile()?.path,
-            false,
-        );
+        await this.msToDoActions.postTask(this.settings.todoListSync?.listId, editor, false);
     }
 }

@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 import _ from 'obsidian';
 
 declare module 'obsidian' {
@@ -9,6 +8,7 @@ declare module 'obsidian' {
     }
 
     interface MetadataCache {
+        // eslint-disable-next-line no-undef
         metadataCache: Record<string, CachedMetadata>;
         fileCache: Record<string, FileCacheRecord>;
     }

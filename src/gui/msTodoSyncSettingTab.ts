@@ -1,8 +1,8 @@
-import { type App, PeriodicNotes, PluginSettingTab, Setting } from 'obsidian';
+import { type App, type PeriodicNotes, PluginSettingTab, Setting } from 'obsidian';
 import type MsTodoSync from '../main.js';
 import { t } from '../lib/lang.js';
 import { type ILogOptions } from '../lib/logging.js';
-import { IUserNotice } from 'src/lib/userNotice.js';
+import type { IUserNotice } from 'src/lib/userNotice.js';
 
 export interface IMsTodoSyncSettings {
     todoListSync: {

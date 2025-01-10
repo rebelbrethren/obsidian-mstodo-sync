@@ -19,7 +19,15 @@ class SettingsManager implements ISettingsManager {
     }
 
     public getTaskIdFromBlockId(blockId: string): string {
-        return this.findKeyCaseInsensitive(this.plugin.settings.taskIdLookup, blockId);
+        return this.findKeyCaseInsensitive(this.plugin.settings.taskIdLookup, blockId) as string;
+    }
+
+    public hasTaskId(taskId: string): boolean {
+        for (const key in this.plugin.settings.taskIdLookup) {
+            if (this.plugin.settings.taskIdLookup[key] === taskId) {
+                return true;
+            }
+        }
     }
 
     async saveSettings(): Promise<void> {
@@ -27,7 +35,7 @@ class SettingsManager implements ISettingsManager {
         await this.plugin.saveData(this.plugin.settings);
     }
 
-    private findKeyCaseInsensitive(obj: Record<string, any>, key: string): any {
+    private findKeyCaseInsensitive(obj: Record<string, unknown>, key: string): unknown {
         const lowerCaseKey = key.toLowerCase();
         const foundKey = Object.keys(obj).find((k) => k.toLowerCase() === lowerCaseKey);
         return foundKey ? obj[foundKey] : undefined;

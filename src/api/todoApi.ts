@@ -1,9 +1,4 @@
-import {
-    type PageCollection,
-    RetryHandlerOptions,
-    type Client,
-    BatchRequestStep,
-} from '@microsoft/microsoft-graph-client';
+import { type PageCollection, RetryHandlerOptions, type Client } from '@microsoft/microsoft-graph-client';
 import { type TodoTask, type TodoTaskList } from '@microsoft/microsoft-graph-types';
 import { t } from '../lib/lang.js';
 import { logging } from '../lib/logging.js';
@@ -22,7 +17,7 @@ export class TasksDeltaCollection {
 export class TodoApi {
     private readonly logger = logging.getLogger('mstodo-sync.TodoApi');
 
-    private client: Client;
+    private client!: Client;
     private readonly enableRetryOptions = false;
 
     constructor(clientProvider: MicrosoftClientProvider) {
@@ -256,7 +251,7 @@ export class TodoApi {
         taskId: string,
         blockId: string,
         webUrl: string,
-    ): Promise<any> {
+    ): Promise<void> {
         const endpoint = `/me/todo/lists/${listId}/tasks/${taskId}/linkedResources`;
 
         const updatedLinkedResource = {
@@ -274,7 +269,7 @@ export class TodoApi {
         linkedResourceId: string,
         blockId: string,
         webUrl: string,
-    ): Promise<any> {
+    ): Promise<void> {
         const endpoint = `/me/todo/lists/${listId}/tasks/${taskId}/linkedResources/${linkedResourceId}`;
 
         const updatedLinkedResource = {

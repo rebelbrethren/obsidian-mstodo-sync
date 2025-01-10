@@ -42,7 +42,7 @@ export class MicrosoftClientProvider {
     }
 
     private readonly scopes: string[] = ['Tasks.ReadWrite', 'openid', 'profile'];
-    private pca: msal.PublicClientApplication;
+    private pca!: msal.PublicClientApplication;
     private readonly adapter: DataAdapter;
     private readonly app: App;
     private readonly cachePath: string;
@@ -126,7 +126,7 @@ export class MicrosoftClientProvider {
         const app = this.app;
         const deviceCodeRequest = {
             async deviceCodeCallback(response: msalCommon.DeviceCodeResponse) {
-                const notice = new Notice(t('Notice_DeviceCodeOnClipboard'));
+                const _notice = new Notice(t('Notice_DeviceCodeOnClipboard'));
                 await navigator.clipboard.writeText(response.userCode);
                 new MicrosoftAuthModal(app, response.userCode, response.verificationUri).open();
                 console.log(t('Notice_DeviceCodeCopiedToClipboard'), response.userCode);

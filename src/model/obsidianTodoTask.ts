@@ -15,13 +15,14 @@ import {
 import { type ISettingsManager } from 'src/utils/settingsManager.js';
 import { logging } from '../lib/logging.js';
 import { CREATED_REGEX, DUE_REGEX, IMPORTANCE_REGEX, STATUS_SYMBOL_REGEX, TASK_REGEX } from '../constants.js';
+import { DateTime } from 'luxon';
 
 /**
  * Represents a task in Obsidian that can be synchronized with Microsoft To Do.
  * Implements the TodoTask interface.
  */
 export class ObsidianTodoTask implements TodoTask {
-    id: string;
+    id!: string;
 
     // The task body that typically contains information about the task.
     public body?: NullableOption<ItemBody>;
@@ -258,6 +259,32 @@ export class ObsidianTodoTask implements TodoTask {
         this.settingsManager.saveSettings();
     }
 
+    public equals(todoTask: TodoTask): boolean {
+        const titleMatch = this.title === todoTask.title;
+        const statusMatch = this.status === todoTask.status;
+        const localDueDate =
+            this.dueDateTime === undefined
+                ? undefined
+                : DateTime.fromISO(this.dueDateTime?.dateTime ?? '', {
+                      zone: this.dueDateTime?.timeZone ?? 'utc',
+                  });
+        const remoteDueDate =
+            todoTask.dueDateTime === undefined
+                ? undefined
+                : DateTime.fromISO(todoTask.dueDateTime?.dateTime ?? '', {
+                      zone: todoTask.dueDateTime?.timeZone ?? 'utc',
+                  });
+        const dueDateTimeMatch = localDueDate?.toISODate() === remoteDueDate?.toISODate();
+        const importanceMatch = this.importance === todoTask.importance;
+
+        // If all the properties match then no update will occur.
+        if (titleMatch && statusMatch && dueDateTimeMatch && importanceMatch) {
+            return true;
+        }
+
+        return false;
+    }
+
     /**
      * Get the task as a TodoTask object.
      * @param withChecklist - Whether to include checklist items in the returned task.
@@ -290,6 +317,8 @@ export class ObsidianTodoTask implements TodoTask {
 
         if (this.dueDateTime) {
             toDo.dueDateTime = this.dueDateTime;
+        } else {
+            toDo.dueDateTime = null;
         }
 
         return toDo;
@@ -404,8 +433,8 @@ export class ObsidianTodoTask implements TodoTask {
 
         // Add in the body if it exists and indented by two spaces.
         if (this.body?.content && this.body.content.length > 0) {
-            for (const bodyLine of this.body?.content.split('\n')) {
-                // eslint-disable-line no-unsafe-optional-chaining
+            const bodyLines = this.body.content.split('\n');
+            for (const bodyLine of bodyLines) {
                 if (bodyLine.trim().length > 0) {
                     formattedBody += '  ' + bodyLine + '\n';
                 }
