@@ -12,9 +12,16 @@ import {
     type TaskStatus,
     type TodoTask,
 } from '@microsoft/microsoft-graph-types';
-import { type ISettingsManager } from 'src/utils/settingsManager.js';
-import { logging } from '../lib/logging.js';
-import { CREATED_REGEX, DUE_REGEX, IMPORTANCE_REGEX, STATUS_SYMBOL_REGEX, TASK_REGEX } from '../constants.js';
+import { type ISettingsManager } from 'src/utils/settingsManager';
+import { logging } from 'src/lib/logging';
+import {
+    CREATED_REGEX,
+    DUE_REGEX,
+    IMPORTANCE_REGEX,
+    STATUS_SYMBOL_REGEX,
+    TASK_LIST_NAME_REGEX,
+    TASK_REGEX,
+} from 'src/constants';
 import { DateTime } from 'luxon';
 
 /**
@@ -141,6 +148,9 @@ export class ObsidianTodoTask implements TodoTask {
      */
     private readonly originalTitle: string;
 
+    public listId?: string;
+    public listName?: string;
+
     /**
      * Creates an instance of ObsidianTodoTask.
      * @param settingsManager - The settings manager instance.
@@ -161,6 +171,12 @@ export class ObsidianTodoTask implements TodoTask {
 
         // This will strip out the checkbox if in title.
         this.checkForStatus(line);
+
+        this.checkForListName(line);
+
+        if (this.listName === undefined) {
+            this.listName = this.settingsManager.settings.todoListSync.listName;
+        }
 
         // - [ ] Adding in updated linked resources updated from list dump  🔎[[2024-12-30]]  🔎[[2024-12-30]] ^MSTDa8de00053
         // This will strip out the created date if in title.
@@ -398,19 +414,19 @@ export class ObsidianTodoTask implements TodoTask {
         const priorityIndicator = this.importance === 'normal' ? '' : this.getPriorityIndicator();
 
         output = format
-            .replace(TASK_REGEX, this.title?.trim() ?? '')
+            .replace(TASK_REGEX, `${this.title?.trim() ?? ''} `)
             .replace(STATUS_SYMBOL_REGEX, this.getStatusIndicator());
 
         output = output.includes(priorityIndicator)
             ? output.replace(IMPORTANCE_REGEX, '')
-            : output.replace(IMPORTANCE_REGEX, priorityIndicator);
+            : output.replace(IMPORTANCE_REGEX, `${priorityIndicator} `);
 
         if (this.dueDateTime?.dateTime) {
             const formattedDueDate = globalThis
                 .moment(this.dueDateTime?.dateTime)
                 .format(this.settingsManager.settings.displayOptions_DateFormat);
             const dueDate = `${this.settingsManager.settings.displayOptions_TaskDuePrefix}${formattedDueDate}`;
-            output = output.replace(DUE_REGEX, dueDate);
+            output = output.replace(DUE_REGEX, `${dueDate} `);
         } else {
             output = output.replace(DUE_REGEX, '');
         }
@@ -419,7 +435,19 @@ export class ObsidianTodoTask implements TodoTask {
             .moment(this.createdDateTime)
             .format(this.settingsManager.settings.displayOptions_DateFormat);
         const createDate = `${this.settingsManager.settings.displayOptions_TaskCreatedPrefix}${formattedCreateDate}`;
-        output = output.replace(CREATED_REGEX, createDate);
+        output = output.replace(CREATED_REGEX, `${createDate} `);
+
+        if (this.listName) {
+            const listNameHasSpace = this.listName.includes(' ');
+            const formattedListName = listNameHasSpace
+                ? this.settingsManager.settings.displayOptions_ListIndicator_UseSingleQuotes
+                    ? `${this.settingsManager.settings.displayOptions_ListIndicator}'${this.listName}'`
+                    : `${this.settingsManager.settings.displayOptions_ListIndicator}"${this.listName}"`
+                : `${this.settingsManager.settings.displayOptions_ListIndicator}${this.listName}`;
+            output = output.replace(TASK_LIST_NAME_REGEX, `${formattedListName} `);
+        } else {
+            output = output.replace(TASK_LIST_NAME_REGEX, '');
+        }
 
         // Append block link at the end if it exists
         if (this.hasBlockLink && this.blockLink) {
@@ -470,6 +498,32 @@ export class ObsidianTodoTask implements TodoTask {
             this.title = this.title?.replace(regex, '').trim();
         } else {
             this.status = 'notStarted';
+        }
+    }
+
+    private escapeRegExp(incomingRegexString: string) {
+        return incomingRegexString.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+    }
+
+    private checkForListName(line: string) {
+        const listIndicator = this.settingsManager.settings.displayOptions_ListIndicator;
+        const quotedListNameRegex = new RegExp(` ${this.escapeRegExp(listIndicator)}\\s*(['"]([^'"]*)['"])`, 'm');
+        const listNameMatch = quotedListNameRegex.exec(line);
+        if (listNameMatch) {
+            this.listName = listNameMatch[2];
+            this.title = this.title?.replace(quotedListNameRegex, '').trim();
+
+            return;
+        }
+
+        const unquotedListNameRegex = new RegExp(` ${this.escapeRegExp(listIndicator)}\\s*(([^\\s]*))`, 'm');
+
+        const listNameMatch2 = unquotedListNameRegex.exec(line);
+        if (listNameMatch2) {
+            this.listName = listNameMatch2[2];
+            this.title = this.title?.replace(unquotedListNameRegex, '').trim();
+
+            return;
         }
     }
 
@@ -532,7 +586,7 @@ export class ObsidianTodoTask implements TodoTask {
             }
 
             default: {
-                return ' ';
+                return '';
             }
         }
     }

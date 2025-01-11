@@ -1,7 +1,7 @@
 import { type App, type PeriodicNotes, PluginSettingTab, Setting } from 'obsidian';
-import type MsTodoSync from '../main.js';
-import { t } from '../lib/lang.js';
-import { type ILogOptions } from '../lib/logging.js';
+import type MsTodoSync from 'src/main.js';
+import { t } from 'src/lib/lang.js';
+import { type ILogOptions } from 'src/lib/logging.js';
 import type { IUserNotice } from 'src/lib/userNotice.js';
 
 export interface IMsTodoSyncSettings {
@@ -9,6 +9,8 @@ export interface IMsTodoSyncSettings {
         listName: string | undefined;
         listId: string | undefined;
     };
+
+    todo_CreateToDoListIfMissing: boolean;
 
     diary: {
         folder: string;
@@ -39,6 +41,9 @@ export interface IMsTodoSyncSettings {
     displayOptions_TaskStatus_InProgress: string;
     displayOptions_TaskStatus_Completed: string;
 
+    displayOptions_ListIndicator: string;
+    displayOptions_ListIndicator_UseSingleQuotes: boolean;
+
     // Microsoft To Do open handler.
     todo_OpenUsingApplicationProtocol: boolean;
 
@@ -60,6 +65,7 @@ export const DEFAULT_SETTINGS: IMsTodoSyncSettings = {
         listName: undefined,
         listId: undefined,
     },
+    todo_CreateToDoListIfMissing: true,
     diary: {
         folder: '',
         format: '',
@@ -73,7 +79,8 @@ export const DEFAULT_SETTINGS: IMsTodoSyncSettings = {
     displayOptions_TaskStartPrefix: '🛫',
     displayOptions_TaskBodyPrefix: '💡',
     displayOptions_ReplaceAddCreatedAt: false,
-    displayOptions_ReplacementFormat: '- [{{STATUS_SYMBOL}}] {{TASK}} {{IMPORTANCE}}',
+    displayOptions_ReplacementFormat:
+        '- [{{STATUS_SYMBOL}}] {{TASK}}{{IMPORTANCE}}{{TASK_LIST_NAME}}{{DUE_DATE}}{{CREATED_DATE}}',
 
     displayOptions_TaskImportance_Low: '🔽',
     displayOptions_TaskImportance_Normal: '🔼',
@@ -82,6 +89,9 @@ export const DEFAULT_SETTINGS: IMsTodoSyncSettings = {
     displayOptions_TaskStatus_NotStarted: ' ',
     displayOptions_TaskStatus_InProgress: '/',
     displayOptions_TaskStatus_Completed: 'x',
+
+    displayOptions_ListIndicator: '+',
+    displayOptions_ListIndicator_UseSingleQuotes: false,
 
     todo_OpenUsingApplicationProtocol: true,
 

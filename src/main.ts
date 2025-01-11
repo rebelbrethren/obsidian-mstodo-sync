@@ -228,19 +228,19 @@ export default class MsTodoSync extends Plugin {
                     });
                     menu.addItem((item) => {
                         item.setTitle('Update Task Cache').onClick(async () => {
-                            await getTaskDelta(this.todoApi, this.settings.todoListSync?.listId, this);
+                            //await this.msToDoActions.getTaskDelta(this.todoApi, this.settings.todoListSync?.listId, this);
                         });
                     });
 
                     menu.addItem((item) => {
                         item.setTitle('Reset Task Cache').onClick(async () => {
-                            await getTaskDelta(this.todoApi, this.settings.todoListSync?.listId, this, true);
+                            await this.msToDoActions.resetTasksCache();
                         });
                     });
 
                     menu.addItem((item) => {
                         item.setTitle('Cleanup Local Task Lookup Table').onClick(async () => {
-                            await cleanupCachedTaskIds(this);
+                            await this.msToDoActions.cleanupCachedTaskIds();
                         });
                     });
 
@@ -270,12 +270,12 @@ export default class MsTodoSync extends Plugin {
 
                     menu.addItem((item) => {
                         item.setTitle('Sync Vault').onClick(async () => {
-                            this.msToDoActions.syncVault(this.settings.todoListSync?.listId);
+                            this.msToDoActions.syncVault();
                         });
                     });
                     menu.addItem((item) => {
                         item.setTitle('Add Missing Tasks').onClick(async () => {
-                            this.msToDoActions.addMissingTasksToVault(this.settings.todoListSync?.listId, editor);
+                            this.msToDoActions.addMissingTasksToVault(editor);
                         });
                     });
                 }),
@@ -294,7 +294,7 @@ export default class MsTodoSync extends Plugin {
      * @returns A promise that resolves when the task has been posted and the page updated.
      */
     private async pushTaskToMsTodoAndUpdatePage(editor: Editor) {
-        await this.msToDoActions.postTask(this.settings.todoListSync?.listId, editor, true);
+        await this.msToDoActions.postTask(editor, true);
     }
 
     /**
@@ -304,6 +304,6 @@ export default class MsTodoSync extends Plugin {
      * @returns A promise that resolves when the task has been successfully pushed.
      */
     private async pushTaskToMsTodo(editor: Editor) {
-        await this.msToDoActions.postTask(this.settings.todoListSync?.listId, editor, false);
+        await this.msToDoActions.postTask(editor, false);
     }
 }

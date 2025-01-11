@@ -4,6 +4,7 @@ import { t } from '../lib/lang.js';
 import { logging } from '../lib/logging.js';
 import { type MicrosoftClientProvider } from './microsoftClientProvider.js';
 
+// This contains all the tasks for a specific list.
 export class TasksDeltaCollection {
     /**
      *
@@ -11,7 +12,16 @@ export class TasksDeltaCollection {
     constructor(
         public allTasks: TodoTask[],
         public deltaLink: string,
+        public listId: string,
+        public name: string,
     ) {}
+}
+
+export class ListsDeltaCollection {
+    /**
+     *
+     */
+    constructor(public allLists: TasksDeltaCollection[]) {}
 }
 
 export class TodoApi {
@@ -48,29 +58,31 @@ export class TodoApi {
      * @param searchPattern - An optional search pattern to filter tasks within the lists.
      * @returns A promise that resolves to an array of `TodoTaskList` objects, each containing their respective tasks, or `undefined` if no lists are found.
      */
-    async getLists(searchPattern?: string): Promise<TodoTaskList[] | undefined> {
+    async getLists(): Promise<TodoTaskList[] | undefined> {
         const endpoint = '/me/todo/lists';
         const todoLists = (await this.client.api(endpoint).get()).value as TodoTaskList[];
-        return Promise.all(
-            todoLists.map(async (taskList) => {
-                try {
-                    const containedTasks = await this.getListTasks(taskList.id, searchPattern);
-                    return {
-                        ...taskList,
-                        tasks: containedTasks,
-                    };
-                } catch (error) {
-                    this.logger.error('Failed to get tasks for list', taskList.displayName);
-                    if (error instanceof Error) {
-                        this.logger.error(error.message);
-                        this.logger.error(error.stack ?? 'No stack trace available');
-                        throw new Error(error.message);
-                    }
 
-                    throw new Error('Unknown issue getting Lists');
-                }
-            }),
-        );
+        return todoLists;
+        // return Promise.all(
+        //     todoLists.map(async (taskList) => {
+        //         try {
+        //             const containedTasks = await this.getListTasks(taskList.id, searchPattern);
+        //             return {
+        //                 ...taskList,
+        //                 tasks: containedTasks,
+        //             };
+        //         } catch (error) {
+        //             this.logger.error('Failed to get tasks for list', taskList.displayName);
+        //             if (error instanceof Error) {
+        //                 this.logger.error(error.message);
+        //                 this.logger.error(error.stack ?? 'No stack trace available');
+        //                 throw new Error(error.message);
+        //             }
+
+        //             throw new Error('Unknown issue getting Lists');
+        //         }
+        //     }),
+        // );
     }
 
     /**
@@ -212,7 +224,7 @@ export class TodoApi {
             deltaLink = response['@odata.deltaLink'];
         }
 
-        const tasksDeltaCollection = new TasksDeltaCollection(allTasks, deltaLink);
+        const tasksDeltaCollection = new TasksDeltaCollection(allTasks, deltaLink, listId, '');
 
         return tasksDeltaCollection;
     }

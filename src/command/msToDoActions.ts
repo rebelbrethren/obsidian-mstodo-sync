@@ -5,7 +5,7 @@ import { type IMsTodoSyncSettings } from '../gui/msTodoSyncSettingTab.js';
 import { UserNotice } from '../lib/userNotice.js';
 import { logging } from '../lib/logging.js';
 import { type TodoTask } from '@microsoft/microsoft-graph-types';
-import { TasksDeltaCollection, TodoApi } from '../api/todoApi.js';
+import { ListsDeltaCollection, TasksDeltaCollection, TodoApi } from '../api/todoApi.js';
 import { t } from '../lib/lang.js';
 import { ObsidianTodoTask } from '../model/obsidianTodoTask.js';
 
@@ -31,7 +31,8 @@ export class MsTodoActions {
         this.settings = settingsManager.settings;
         this.plugin = plugin;
         this.todoApi = todoApi;
-        this.deltaCachePath = `${this.plugin.app.vault.configDir}/mstd-tasks-delta.json`;
+        const pluginPath = this.plugin.manifest.dir;
+        this.deltaCachePath = `${pluginPath}/mstd-tasks-delta.json`;
     }
 
     /**
@@ -44,7 +45,8 @@ export class MsTodoActions {
      * If a local task is on one ore more pages then the most recently modified page will be
      * classed as the source of truth.
      */
-    public async syncVault(listId: string | undefined) {
+    public async syncVault() {
+        this.userNotice.showMessage(t('CommandNotice_SyncingVault'), 3000);
         // Get all the blocks in the vault.
         const blockCache = this.getAllVaultBlocks();
 
@@ -52,13 +54,36 @@ export class MsTodoActions {
 
         // Get the local task that is most recent in the case there are duplicate IDs in the vault.
         // The key is in the format of cacheKey-blockId. So need to pull the blockId from the key.
-        const localTasks: Record<string, { mtime: number; pageHash: string; pagePath: string; block: BlockCache }> = {};
+        const pageContentCache: Record<string, string> = {};
+
+        const localTasks: Record<
+            string,
+            { mtime: number; pageHash: string; pagePath: string; block: BlockCache; taskLine: string }
+        > = {};
         for (const key in blockCache) {
             if (Object.hasOwn(blockCache, key)) {
                 const internalPageHash = key.split('-')[0];
                 const blockId = key.split('-')[1];
                 // Get the mtime.
                 const mtime = blockCache[key].mtime;
+                const pagePath = blockCache[key].pagePath;
+                let taskContent = '';
+                if (!pageContentCache[pagePath]) {
+                    this.logger.info(`Reading Page: ${pagePath}`);
+                    const fileReference = this.plugin.app.vault.getFileByPath(pagePath);
+                    if (fileReference) {
+                        pageContentCache[pagePath] = await this.plugin.app.vault.read(fileReference);
+                    }
+                }
+                if (pageContentCache[pagePath]) {
+                    taskContent = pageContentCache[pagePath].slice(
+                        blockCache[key].block.position.start.offset,
+                        blockCache[key].block.position.end.offset,
+                    );
+                } else {
+                    this.logger.info(`Page content not found: ${pagePath}`, { blockId, internalPageHash });
+                }
+
                 // If the localTasks contains the block id as key, check the value
                 // and update if the mtime is more recent.
                 if (localTasks[blockId] && localTasks[blockId].mtime < mtime) {
@@ -67,6 +92,7 @@ export class MsTodoActions {
                         pageHash: internalPageHash,
                         pagePath: blockCache[key].pagePath,
                         block: blockCache[key].block,
+                        taskLine: taskContent,
                     };
                 } else {
                     localTasks[blockId] = {
@@ -74,6 +100,7 @@ export class MsTodoActions {
                         pageHash: internalPageHash,
                         pagePath: blockCache[key].pagePath,
                         block: blockCache[key].block,
+                        taskLine: taskContent,
                     };
                 }
             }
@@ -82,14 +109,17 @@ export class MsTodoActions {
         this.logger.info(`Local Tasks: ${Object.keys(localTasks).length}`);
 
         // Get all the tasks from the cache.
-        const cachedTasksDelta = await this.getTaskDelta(listId, false);
+        const cachedTasksDelta = await this.getTaskDelta();
 
         // If there are no tasks in the cache then return.
         if (!cachedTasksDelta) {
             return;
         }
 
-        this.logger.info(`Remote Tasks: ${cachedTasksDelta.allTasks.length}`);
+        // Get sum of all tasks in all lists.
+        const countOfAllTasks = cachedTasksDelta.allLists.reduce((acc, list) => acc + list.allTasks.length, 0);
+
+        this.logger.info(`Remote Tasks: ${countOfAllTasks}`);
         this.logger.info(`Lookups in settings: ${Object.keys(this.plugin.settings.taskIdLookup).length}`);
 
         // Iterate over all the tasks in internal cache and update the block references.
@@ -98,8 +128,17 @@ export class MsTodoActions {
             // For each of the cached block items get the taskId which is used int he remote
             // system. Then get the remote task from the cached list and finally the local task
             // from the vault that was collected above.
+
             const taskId = this.settingsManager.getTaskIdFromBlockId(blockId);
-            const cachedTask = cachedTasksDelta.allTasks.find((task) => task.id === taskId);
+
+            // Check if the task exists in the remote cache
+            const { list, task: cachedTask } = await this.getListAndTaskFromTaskId(taskId, true);
+
+            if (!list || !cachedTask) {
+                this.logger.info(`Task not found in remote cache: ${taskId}`);
+                continue;
+            }
+
             const localTask = localTasks[blockId.toLowerCase()];
             if (!localTask) {
                 this.logger.info(`Block not found in local tasks: ${blockId}`);
@@ -107,21 +146,31 @@ export class MsTodoActions {
             }
 
             const block = blockCache[`${localTasks[blockId.toLowerCase()].pageHash}-${blockId.toLowerCase()}`];
-            const vaultFileReference = this.plugin.app.vault.getFileByPath(localTask.pagePath);
+            //const vaultFileReference = this.plugin.app.vault.getFileByPath(localTask.pagePath);
 
-            if (!block || !cachedTask || !localTask || !cachedTask.lastModifiedDateTime || !vaultFileReference) {
-                this.logger.info(`Issue with finding local or remote task for: ${blockId}`);
+            if (!block || !cachedTask || !localTask || !cachedTask.lastModifiedDateTime || !localTask.taskLine) {
+                if (!block) {
+                    this.logger.info(`Issue with finding block in vault for: ${blockId}`);
+                }
+                if (!cachedTask) {
+                    this.logger.info(`Issue with finding remote task for: ${blockId}`);
+                }
+                if (!localTask) {
+                    this.logger.info(`Issue with finding local task for: ${blockId}`);
+                }
+                if (!cachedTask.lastModifiedDateTime) {
+                    this.logger.info(`Issue with finding remote task lastModifiedDateTime for: ${blockId}`);
+                }
+                if (!localTask.taskLine) {
+                    this.logger.info(`Issue with finding local task taskLine for: ${blockId}`, localTask);
+                }
                 continue;
             }
 
             const localTaskNewer = new Date(cachedTask.lastModifiedDateTime) < new Date(localTask.mtime);
 
             // Get the string from the page using the start and end provided by the block.
-            const pageContent = await this.plugin.app.vault.read(vaultFileReference);
-            const taskContent = pageContent.slice(
-                localTask.block.position.start.offset,
-                localTask.block.position.end.offset,
-            );
+            const taskContent = localTask.taskLine;
             const internalTask = new ObsidianTodoTask(this.settingsManager, taskContent);
             internalTask.id = taskId;
 
@@ -129,6 +178,8 @@ export class MsTodoActions {
             if (internalTask.equals(cachedTask)) {
                 continue;
             }
+
+            this.logger.info('Checking Sync Direction', { blockId });
 
             // Now we need to check the following:
             // If the local task is more recent than the remote task then update the remote task.
@@ -140,7 +191,7 @@ export class MsTodoActions {
 
                 // Push local update to remote API.
                 const returnedTask = await this.todoApi.updateTaskFromToDo(
-                    listId,
+                    list.listId,
                     internalTask.id,
                     internalTask.getTodoTask(),
                 );
@@ -155,17 +206,49 @@ export class MsTodoActions {
                 internalTask.updateFromTodoTask(cachedTask);
                 const updatedTask = internalTask.getMarkdownTask(true);
 
-                await this.plugin.app.vault.process(vaultFileReference, (data) => {
-                    const newPageContent = data.replace(taskContent, updatedTask);
+                const vaultFileReference = this.plugin.app.vault.getFileByPath(localTask.pagePath);
+                if (vaultFileReference) {
+                    await this.plugin.app.vault.process(vaultFileReference, (data) => {
+                        const newPageContent = data.replace(taskContent, updatedTask);
 
-                    this.logger.debug(`Updating Task ID: ${blockId}`, newPageContent);
-                    return newPageContent;
-                });
-                updatedTasks++;
+                        this.logger.debug(`Updating Task ID: ${blockId}`, newPageContent);
+                        return newPageContent;
+                    });
+                    updatedTasks++;
+                }
             }
         }
 
         this.logger.info(`Updated Tasks: ${updatedTasks}`);
+        this.userNotice.showMessage(t('CommandNotice_SyncComplete'), 3000);
+    }
+
+    /**
+     * Retrieves a specific task and its corresponding list from the cache based on the provided task ID.
+     *
+     * @param taskId - The ID of the task to retrieve.
+     * @returns A promise that resolves to an object containing the list and task.
+     *          If the task is not found, both properties will be `undefined`.
+     */
+    private async getListAndTaskFromTaskId(
+        taskId: string,
+        skipRemoteCheck = false,
+    ): Promise<{ list: TasksDeltaCollection | undefined; task: TodoTask | undefined }> {
+        // Get all the tasks from the cache.
+        const cachedTasksDelta = await this.getTaskDelta(false, skipRemoteCheck);
+
+        // If there are no tasks in the cache then return.
+        if (!cachedTasksDelta) {
+            return { list: undefined, task: undefined };
+        }
+        for (const list of cachedTasksDelta.allLists) {
+            const task = list.allTasks.find((t) => t.id === taskId);
+            if (task) {
+                return { list, task };
+            }
+        }
+
+        return { list: undefined, task: undefined };
     }
 
     /**
@@ -278,6 +361,7 @@ export class MsTodoActions {
             if (Object.hasOwn(internalMetadataCache, cacheKey) && internalMetadataCache[cacheKey].blocks) {
                 const blocksCache = internalMetadataCache[cacheKey].blocks;
                 const file = this.findBySubProperty(this.plugin.app.metadataCache.fileCache, 'hash', cacheKey);
+                // this.logger.info(`getAllVaultBlocks - File:`, file);
                 for (const blockKey in blocksCache) {
                     if (Object.hasOwn(internalMetadataCache, cacheKey)) {
                         const block = blocksCache[blockKey.toLowerCase()];
@@ -315,43 +399,59 @@ export class MsTodoActions {
         return entry ? { key: entry[0], value: entry[1] } : undefined;
     }
 
-    public async addMissingTasksToVault(listId: string | undefined, editor?: Editor) {
-        if (!listId) {
-            this.userNotice.showMessage(t('CommandNotice_SetListName'));
-            return;
-        }
+    public async resetTasksCache() {
+        this.logger.debug('Resetting Delta Cache');
+
+        await this.getTaskDelta(true);
+    }
+
+    public async addMissingTasksToVault(editor?: Editor) {
         const activeFile = this.plugin.app.workspace.getActiveFile();
         if (activeFile === null) {
             return;
         }
 
         this.userNotice.showMessage(t('CommandNotice_AddingMissingTasks'), 3000);
-        const cachedTasksDelta = await this.getTaskDelta(listId);
+        const cachedTasksDelta = await this.getTaskDelta();
+
+        // cachedTasksDelta?.allLists.forEach((list) => {
+        //     this.logger.info(`List: ${list.name}`);
+        //     list.allTasks.forEach((task) => {
+        //         this.logger.info(`Task: ${task.title}`, task);
+        //     });
+        // });
 
         // For each task in the cache, check if it exists in the vault.
         // If it does not, create a new block in the vault.
         let createdTasks = 0;
         let addedTasks = '';
-        for (const task of cachedTasksDelta?.allTasks ?? []) {
-            if (task.status === 'completed') {
-                continue;
-            }
-            // Check if the task ID exists in the block cache.
-            const blockId = task.id ? this.settingsManager.hasTaskId(task.id) : false;
-            if (blockId) {
-                this.logger.debug(`Task already tracked in vault.`, task.title);
-                continue;
-            }
-            this.logger.debug(`Block not found in vault: ${task.id}`, task.title);
+        for (const list of cachedTasksDelta?.allLists ?? []) {
+            for (const task of list?.allTasks ?? []) {
+                if (task.status === 'completed') {
+                    continue;
+                }
+                // Check if the task ID exists in the block cache.
+                const blockId = task.id ? this.settingsManager.hasTaskId(task.id) : false;
+                if (blockId) {
+                    this.logger.debug(`Task already tracked in vault.`, task.title);
+                    continue;
+                }
+                this.logger.debug(`Block not found in vault: ${task.id}`, task.title);
 
-            // Create a new block in the vault.
-            const newTask = new ObsidianTodoTask(this.settingsManager, '');
-            newTask.updateFromTodoTask(task);
-            newTask.cacheTaskId(task.id ?? '');
-            addedTasks += `${newTask.getMarkdownTask(true)}\n`;
-            this.logger.info(`Adding Task: ${newTask.getMarkdownTask(true)}`, newTask);
+                // Create a new block in the vault.
+                const newTask = new ObsidianTodoTask(this.settingsManager, '');
+                newTask.listId = list.listId;
+                newTask.listName = list.name;
+                newTask.updateFromTodoTask(task);
+                newTask.cacheTaskId(task.id ?? '');
+                addedTasks += `${newTask.getMarkdownTask(true)}\n`;
+                this.logger.info(`Adding Task: ${newTask.getMarkdownTask(true)}`, newTask);
+                createdTasks++;
+            }
         }
         if (editor) {
+            this.logger.info(`Page Updates: ${createdTasks}`, addedTasks);
+
             editor.replaceSelection(addedTasks);
         }
         this.logger.info(`Created Tasks: ${createdTasks}`);
@@ -369,12 +469,7 @@ export class MsTodoActions {
      *
      * @returns A promise that resolves when the tasks have been posted and the file has been modified.
      */
-    public async postTask(listId: string | undefined, editor: Editor, replace?: boolean) {
-        if (!listId) {
-            this.userNotice.showMessage(t('CommandNotice_SetListName'));
-            return;
-        }
-
+    public async postTask(editor: Editor, replace?: boolean) {
         const activeFile = this.plugin.app.workspace.getActiveFile();
         if (activeFile === null) {
             return;
@@ -386,7 +481,15 @@ export class MsTodoActions {
         const { lines } = await this.getCurrentLinesFromEditor(editor);
 
         // Single call to update the cache using the delta link.
-        const cachedTasksDelta = await this.getTaskDelta(listId);
+        const cachedTasksDelta = await this.getTaskDelta();
+        // If there are no tasks in the cache then return.
+        if (!cachedTasksDelta) {
+            return;
+        }
+
+        // Get sum of all tasks in all lists.
+        const countOfAllTasks = cachedTasksDelta.allLists.reduce((acc, list) => acc + list.allTasks.length, 0);
+        this.logger.info(`Remote Tasks: ${countOfAllTasks}`);
 
         // Get all the lines the user has selected.
         const split = source.split('\n');
@@ -406,13 +509,13 @@ export class MsTodoActions {
                 // lookup a id from the internal cache.
                 if (todo.hasBlockLink && todo.hasId) {
                     // Check for linked resource and update if there otherwise create.
-                    const cachedTask = cachedTasksDelta?.allTasks.find((task) => task.id === todo.id);
+                    const { list, task: cachedTask } = await this.getListAndTaskFromTaskId(todo.id);
 
                     if (cachedTask && !todo.equals(cachedTask)) {
                         const linkedResource = cachedTask.linkedResources?.first();
                         if (linkedResource && linkedResource.id) {
                             await this.todoApi.updateLinkedResource(
-                                listId,
+                                list?.listId ?? '',
                                 todo.id,
                                 linkedResource.id,
                                 todo.blockLink ?? '',
@@ -420,7 +523,7 @@ export class MsTodoActions {
                             );
                         } else {
                             await this.todoApi.createLinkedResource(
-                                listId,
+                                list?.listId ?? '',
                                 todo.id,
                                 todo.blockLink ?? '',
                                 todo.getRedirectUrl(),
@@ -434,12 +537,40 @@ export class MsTodoActions {
                     if (cachedTask && !todo.equals(cachedTask)) {
                         this.logger.info(`Updating Task: ${todo.title}`, todo.getTodoTask());
 
-                        const returnedTask = await this.todoApi.updateTaskFromToDo(listId, todo.id, todo.getTodoTask());
+                        const returnedTask = await this.todoApi.updateTaskFromToDo(
+                            list?.listId ?? '',
+                            todo.id,
+                            todo.getTodoTask(),
+                        );
                         this.logger.debug(`updated: ${returnedTask.id}`);
                     }
                     this.logger.debug(`blockLink: ${todo.blockLink}, taskId: ${todo.id}`);
                 } else {
                     this.logger.info(`Creating Task: ${todo.title}`);
+                    // Check for a list id in the settings.
+                    let listId = this.settingsManager.settings.todoListSync.listId;
+                    if (todo.listName) {
+                        // Lookup the list id from the cache using the list name.
+                        const list = cachedTasksDelta.allLists.find((l) => l.name === todo.listName);
+                        listId = list?.listId;
+                        if (!listId) {
+                            if (this.settingsManager.settings.todo_CreateToDoListIfMissing) {
+                                // Make the list.
+                                const newTaskList = await this.todoApi.createTaskList(todo.listName);
+                                this.logger.info(`Creating List: ${todo.listName}`, newTaskList);
+                                if (!newTaskList) {
+                                    this.userNotice.showMessage(t('Error_UnableToCreateList'));
+                                    return;
+                                }
+                                todo.listId = newTaskList.id ?? '';
+                                listId = todo.listId;
+                            } else {
+                                this.userNotice.showMessage(t('Error_UnableToDetermineListId'));
+                                return;
+                            }
+                        }
+                    }
+
                     this.logger.debug(`Creating Task: ${listId}`);
 
                     const returnedTask = await this.todoApi.createTaskFromToDo(listId, todo.getTodoTask());
@@ -525,77 +656,116 @@ export class MsTodoActions {
      * If the file exists, it reads and parses the JSON content into a `TasksDeltaCollection` object.
      * If the file does not exist, it returns `undefined`.
      *
-     * @returns {Promise<TasksDeltaCollection | undefined>} A promise that resolves to the cached tasks delta or `undefined` if the cache file does not exist.
+     * @returns {Promise<ListsDeltaCollection | undefined>} A promise that resolves to the cached tasks delta or `undefined` if the cache file does not exist.
      */
-    private async getDeltaCache(): Promise<TasksDeltaCollection | undefined> {
+    private async getDeltaCache(): Promise<ListsDeltaCollection | undefined> {
         const adapter: DataAdapter = this.plugin.app.vault.adapter;
-        let cachedTasksDelta: TasksDeltaCollection | undefined;
+        let cachedTasksDelta: ListsDeltaCollection | undefined;
 
         if (await adapter.exists(this.deltaCachePath)) {
-            cachedTasksDelta = JSON.parse(await adapter.read(this.deltaCachePath)) as TasksDeltaCollection;
+            cachedTasksDelta = JSON.parse(await adapter.read(this.deltaCachePath)) as ListsDeltaCollection;
         }
 
         return cachedTasksDelta;
     }
 
+    /**
+     * Resets the delta cache by removing the cache file if it exists.
+     *
+     * This method checks if the delta cache file exists in the vault adapter.
+     * If the file exists, it removes the file to reset the cache.
+     *
+     * @returns {Promise<void>} A promise that resolves when the cache file is removed.
+     */
     private async resetDeltaCache() {
         const adapter: DataAdapter = this.plugin.app.vault.adapter;
-        await adapter.remove(this.deltaCachePath);
+        if (await adapter.exists(this.deltaCachePath)) {
+            await adapter.remove(this.deltaCachePath);
+        }
     }
 
-    private async setDeltaCache(cachedTasksDelta: TasksDeltaCollection) {
+    /**
+     * Asynchronously writes the provided delta of cached tasks to the specified cache path.
+     *
+     * @param cachedTasksDelta - The collection of task deltas to be cached.
+     * @returns A promise that resolves when the cache has been successfully written.
+     */
+    private async setDeltaCache(cachedTasksDelta: ListsDeltaCollection) {
         const adapter: DataAdapter = this.plugin.app.vault.adapter;
         await adapter.write(this.deltaCachePath, JSON.stringify(cachedTasksDelta));
     }
 
     /**
-     * Retrieves the delta of tasks for a given list. If a list ID is not provided,
-     * a user notice is shown. Optionally, the delta cache can be reset.
+     * Retrieves the delta of tasks for all lists. Optionally, the delta cache can be reset.
      *
      * @param {string | undefined} listId - The ID of the task list to retrieve the delta for.
      * @param {boolean} [reset=false] - Whether to reset the delta cache.
-     * @returns {Promise<TasksDeltaCollection>} - A promise that resolves to the updated tasks delta collection.
+     * @returns {Promise<ListsDeltaCollection>} - A promise that resolves to the updated tasks delta collection.
      *
      * @throws {Error} - Throws an error if the task retrieval fails.
      */
     private async getTaskDelta(
-        listId: string | undefined,
         reset: boolean = false,
-    ): Promise<TasksDeltaCollection | undefined> {
-        if (!listId) {
-            this.userNotice.showMessage(t('CommandNotice_SetListName'));
-            return;
-        }
+        skipRemoteCheck: boolean = false,
+    ): Promise<ListsDeltaCollection | undefined> {
+        this.logger.debug('getTaskDelta', { reset, skipRemoteCheck });
+
         if (reset) {
-            this.resetDeltaCache();
+            this.logger.info('Resetting Delta Cache');
+            await this.resetDeltaCache();
         }
 
-        let deltaLink = '';
         let cachedTasksDelta = await this.getDeltaCache();
 
-        if (cachedTasksDelta) {
-            deltaLink = cachedTasksDelta.deltaLink;
-        } else {
-            cachedTasksDelta = new TasksDeltaCollection([], '');
+        if (!cachedTasksDelta) {
+            cachedTasksDelta = new ListsDeltaCollection([]);
+
+            const allToDoLists = await this.todoApi.getLists();
+            if (!allToDoLists) {
+                return;
+            }
+
+            for (const list of allToDoLists) {
+                if (list.id && list.displayName) {
+                    cachedTasksDelta.allLists.push(new TasksDeltaCollection([], '', list.id, list.displayName));
+                }
+            }
         }
 
-        const returnedTask = await this.todoApi.getTasksDelta(listId, deltaLink);
-        if (cachedTasksDelta) {
-            this.logger.info('Cache Details', {
-                currentCacheCount: cachedTasksDelta.allTasks.length,
-                returnedCount: returnedTask.allTasks.length,
-            });
+        // At this point we have a new empty cache or a cache with lists. For
+        // each list we will get the delta and merge the results.
 
-            cachedTasksDelta.allTasks = this.mergeCollections(cachedTasksDelta.allTasks, returnedTask.allTasks);
-            this.logger.info('Cache Details', { currentCacheCount: cachedTasksDelta.allTasks.length });
-            cachedTasksDelta.deltaLink = returnedTask.deltaLink;
-        } else {
-            this.logger.info('First run, loading delta cache');
+        for (const list of cachedTasksDelta.allLists) {
+            const deltaLink = list.deltaLink == '' ? '' : list.deltaLink;
 
-            cachedTasksDelta = returnedTask;
+            let returnedTask = new TasksDeltaCollection([], '', list.listId, list.name);
+            if (!skipRemoteCheck) {
+                returnedTask = await this.todoApi.getTasksDelta(list.listId, deltaLink);
+            }
+
+            if (list.allTasks.length > 0) {
+                this.logger.debug('Cache Details', {
+                    currentCacheCount: list.allTasks.length,
+                    returnedCount: returnedTask.allTasks.length,
+                });
+
+                list.allTasks = this.mergeCollections(list.allTasks, returnedTask.allTasks);
+                this.logger.debug('Cache Details', { currentCacheCount: list.allTasks.length });
+                list.deltaLink = returnedTask.deltaLink;
+            } else {
+                this.logger.info('First run or there was a reset, loading delta cache');
+                list.allTasks = returnedTask.allTasks;
+                list.deltaLink = returnedTask.deltaLink;
+            }
         }
 
-        await this.setDeltaCache(cachedTasksDelta);
+        if (!skipRemoteCheck) {
+            // Save the updated cache.
+            const countOfAllTasks = cachedTasksDelta.allLists.reduce((acc, list) => acc + list.allTasks.length, 0);
+
+            this.logger.info(`Saving Delta Cache storing ${countOfAllTasks} tasks`);
+            await this.setDeltaCache(cachedTasksDelta);
+        }
 
         return cachedTasksDelta;
     }

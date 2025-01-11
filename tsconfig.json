@@ -11,11 +11,14 @@
         "moduleResolution": "Node",
         "importHelpers": true,
         "isolatedModules": true,
-        "verbatimModuleSyntax": true,
         "lib": ["DOM", "ESNext"],
         "allowSyntheticDefaultImports": true,
         "skipLibCheck": true,
-        "resolveJsonModule": true
+        "resolveJsonModule": true,
+        "paths": {
+            "src/*": ["src/*"],
+            "^obsidian$": ["<rootDir>/src/__mocks__/obsidian.ts"]
+        }
     },
     "include": ["src/**/*.ts"],
     "exclude": ["node_modules"]

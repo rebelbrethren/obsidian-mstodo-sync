@@ -26,3 +26,6 @@ class LocalStorageMock {
 }
 
 globalThis.localStorage = new LocalStorageMock();
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
+globalThis.moment = require('moment');
