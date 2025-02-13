@@ -167,10 +167,10 @@ export default class MsTodoSync extends Plugin {
                 //         },
                 //     );
                 // });
-                menu.addItem(microsoftToDoItem => {
+                menu.addItem((microsoftToDoItem) => {
                     microsoftToDoItem.setTitle('Microsoft To-Do');
                     microsoftToDoItem.setIcon('check-check');
-                
+
                     const microsoftToDoSubmenu = microsoftToDoItem.setSubmenu();
                     microsoftToDoSubmenu.addItem((item) => {
                         item.setTitle(t('EditorMenu_SyncToTodoAndReplace')).onClick(async () => {
@@ -200,7 +200,7 @@ export default class MsTodoSync extends Plugin {
                             );
                         });
                     });
-    
+
                     microsoftToDoSubmenu.addItem((item) => {
                         item.setTitle('Sync Task with details (Pull)').onClick(async () => {
                             await postTaskAndChildren(
@@ -213,33 +213,28 @@ export default class MsTodoSync extends Plugin {
                             );
                         });
                     });
-    
+
                     microsoftToDoSubmenu.addItem((item) => {
                         item.setTitle(t('EditorMenu_OpenToDo')).onClick(async () => {
                             this.msToDoActions.viewTaskInTodo(editor);
                         });
-                    });                    
-
+                    });
                 });
-
-                
             }),
         );
 
         if (this.settings.hackingEnabled) {
             this.registerEvent(
                 this.app.workspace.on('editor-menu', (menu, editor, _view) => {
-
-                    menu.addItem(microsoftToDoItem => {
+                    menu.addItem((microsoftToDoItem) => {
                         microsoftToDoItem.setTitle('Microsoft To-Do - Hacking');
                         microsoftToDoItem.setIcon('skull');
-                    
+
                         const microsoftToDoSubmenu = microsoftToDoItem.setSubmenu();
                         microsoftToDoSubmenu.addItem((item) => {
                             item.setTitle('Testing Commands Enabled');
                         });
                         microsoftToDoSubmenu.addSeparator();
-
 
                         microsoftToDoSubmenu.addItem((item) => {
                             item.setTitle('Sync Vault').onClick(async () => {
@@ -252,19 +247,19 @@ export default class MsTodoSync extends Plugin {
                                 //await this.msToDoActions.getTaskDelta(this.todoApi, this.settings.todoListSync?.listId, this);
                             });
                         });
-    
+
                         microsoftToDoSubmenu.addItem((item) => {
                             item.setTitle('Reset Task Cache').onClick(async () => {
                                 await this.msToDoActions.resetTasksCache();
                             });
                         });
-    
+
                         microsoftToDoSubmenu.addItem((item) => {
                             item.setTitle('Cleanup Local Task Lookup Table').onClick(async () => {
                                 await this.msToDoActions.cleanupCachedTaskIds();
                             });
                         });
-    
+
                         microsoftToDoSubmenu.addItem((item) => {
                             item.setTitle('Insert all tasks with body').onClick(async () => {
                                 await getAllTasksInList(
@@ -276,7 +271,7 @@ export default class MsTodoSync extends Plugin {
                                 );
                             });
                         });
-    
+
                         microsoftToDoSubmenu.addItem((item) => {
                             item.setTitle('Insert all tasks').onClick(async () => {
                                 await getAllTasksInList(
@@ -288,7 +283,6 @@ export default class MsTodoSync extends Plugin {
                                 );
                             });
                         });
-    
 
                         microsoftToDoSubmenu.addItem((item) => {
                             item.setTitle('Add Missing Tasks').onClick(async () => {
@@ -296,8 +290,6 @@ export default class MsTodoSync extends Plugin {
                             });
                         });
                     });
-
-
                 }),
             );
         }
