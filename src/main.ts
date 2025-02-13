@@ -1,14 +1,7 @@
 import { type CachedMetadata, type Editor, type MarkdownFileInfo, type MarkdownView, Plugin } from 'obsidian';
 import { TodoApi } from './api/todoApi.js';
 import { DEFAULT_SETTINGS, MsTodoSyncSettingTab, type IMsTodoSyncSettings } from './gui/msTodoSyncSettingTab.js';
-import {
-    cleanupCachedTaskIds,
-    createTodayTasks,
-    getAllTasksInList,
-    getTask,
-    getTaskDelta,
-    postTaskAndChildren,
-} from './command/msTodoCommand.js';
+import { createTodayTasks, getAllTasksInList, getTask, postTaskAndChildren } from './command/msTodoCommand.js';
 import { t } from './lib/lang.js';
 import { log, logging } from './lib/logging.js';
 import { SettingsManager } from './utils/settingsManager.js';
@@ -135,7 +128,7 @@ export default class MsTodoSync extends Plugin {
                 id: 'sync-vault',
                 name: 'Sync Vault',
                 callback: async () => {
-                    this.msToDoActions.syncVault(this.settings.todoListSync?.listId);
+                    this.msToDoActions.syncVault();
                 },
             });
         }

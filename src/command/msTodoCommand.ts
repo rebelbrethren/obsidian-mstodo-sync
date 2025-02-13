@@ -338,7 +338,7 @@ export async function getTaskDelta(todoApi: TodoApi, listId: string | undefined,
     if (cachedTasksDelta) {
         deltaLink = cachedTasksDelta.deltaLink;
     } else {
-        cachedTasksDelta = new TasksDeltaCollection([], '');
+        cachedTasksDelta = new TasksDeltaCollection([], '' ,'', '');
     }
 
     const returnedTask = await todoApi.getTasksDelta(listId, deltaLink);

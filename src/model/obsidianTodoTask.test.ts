@@ -1,15 +1,7 @@
 /* eslint-disable no-undef */
 import { ObsidianTodoTask } from './obsidianTodoTask';
 import { type ISettingsManager } from 'src/utils/settingsManager';
-import {
-    TodoTask,
-    NullableOption,
-    ItemBody,
-    DateTimeTimeZone,
-    Importance,
-    TaskStatus,
-} from '@microsoft/microsoft-graph-types';
-import { DateTime } from 'luxon';
+import { TodoTask } from '@microsoft/microsoft-graph-types';
 
 describe('ObsidianTodoTask', () => {
     let settingsManager: ISettingsManager;
@@ -57,6 +49,7 @@ describe('ObsidianTodoTask', () => {
                 },
                 hackingEnabled: false,
                 displayOptions_ListIndicator_UseSingleQuotes: false,
+                todo_CreateToDoListIfMissing: false,
             },
             vaultName: 'test-vault',
             saveSettings: jest.fn(),
