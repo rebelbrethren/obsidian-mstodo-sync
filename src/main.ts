@@ -167,117 +167,137 @@ export default class MsTodoSync extends Plugin {
                 //         },
                 //     );
                 // });
+                menu.addItem(microsoftToDoItem => {
+                    microsoftToDoItem.setTitle('Microsoft To-Do');
+                    microsoftToDoItem.setIcon('check-check');
+                
+                    const microsoftToDoSubmenu = microsoftToDoItem.setSubmenu();
+                    microsoftToDoSubmenu.addItem((item) => {
+                        item.setTitle(t('EditorMenu_SyncToTodoAndReplace')).onClick(async () => {
+                            await this.pushTaskToMsTodoAndUpdatePage(editor);
+                        });
+                    });
+                    microsoftToDoSubmenu.addItem((item) => {
+                        item.setTitle(t('EditorMenu_FetchFromRemote')).onClick(async () => {
+                            await getTask(
+                                this.todoApi,
+                                this.settings.todoListSync?.listId,
+                                editor,
+                                this.app.workspace.getActiveFile()?.path,
+                                this,
+                            );
+                        });
+                    });
+                    microsoftToDoSubmenu.addItem((item) => {
+                        item.setTitle('Sync Task with details (Push)').onClick(async () => {
+                            await postTaskAndChildren(
+                                this.todoApi,
+                                this.settings.todoListSync?.listId,
+                                editor,
+                                this.app.workspace.getActiveFile()?.path,
+                                this,
+                                true,
+                            );
+                        });
+                    });
+    
+                    microsoftToDoSubmenu.addItem((item) => {
+                        item.setTitle('Sync Task with details (Pull)').onClick(async () => {
+                            await postTaskAndChildren(
+                                this.todoApi,
+                                this.settings.todoListSync?.listId,
+                                editor,
+                                this.app.workspace.getActiveFile()?.path,
+                                this,
+                                false,
+                            );
+                        });
+                    });
+    
+                    microsoftToDoSubmenu.addItem((item) => {
+                        item.setTitle(t('EditorMenu_OpenToDo')).onClick(async () => {
+                            this.msToDoActions.viewTaskInTodo(editor);
+                        });
+                    });                    
 
-                menu.addItem((item) => {
-                    item.setTitle(t('EditorMenu_SyncToTodoAndReplace')).onClick(async () => {
-                        await this.pushTaskToMsTodoAndUpdatePage(editor);
-                    });
                 });
 
-                menu.addItem((item) => {
-                    item.setTitle(t('EditorMenu_FetchFromRemote')).onClick(async () => {
-                        await getTask(
-                            this.todoApi,
-                            this.settings.todoListSync?.listId,
-                            editor,
-                            this.app.workspace.getActiveFile()?.path,
-                            this,
-                        );
-                    });
-                });
-                menu.addItem((item) => {
-                    item.setTitle('Sync Task with details (Push)').onClick(async () => {
-                        await postTaskAndChildren(
-                            this.todoApi,
-                            this.settings.todoListSync?.listId,
-                            editor,
-                            this.app.workspace.getActiveFile()?.path,
-                            this,
-                            true,
-                        );
-                    });
-                });
-
-                menu.addItem((item) => {
-                    item.setTitle('Sync Task with details (Pull)').onClick(async () => {
-                        await postTaskAndChildren(
-                            this.todoApi,
-                            this.settings.todoListSync?.listId,
-                            editor,
-                            this.app.workspace.getActiveFile()?.path,
-                            this,
-                            false,
-                        );
-                    });
-                });
-
-                menu.addItem((item) => {
-                    item.setTitle(t('EditorMenu_OpenToDo')).onClick(async () => {
-                        this.msToDoActions.viewTaskInTodo(editor);
-                    });
-                });
+                
             }),
         );
 
         if (this.settings.hackingEnabled) {
             this.registerEvent(
                 this.app.workspace.on('editor-menu', (menu, editor, _view) => {
-                    menu.addSeparator();
-                    menu.addItem((item) => {
-                        item.setTitle('Testing Commands Enabled');
-                    });
-                    menu.addItem((item) => {
-                        item.setTitle('Update Task Cache').onClick(async () => {
-                            //await this.msToDoActions.getTaskDelta(this.todoApi, this.settings.todoListSync?.listId, this);
+
+                    menu.addItem(microsoftToDoItem => {
+                        microsoftToDoItem.setTitle('Microsoft To-Do - Hacking');
+                        microsoftToDoItem.setIcon('skull');
+                    
+                        const microsoftToDoSubmenu = microsoftToDoItem.setSubmenu();
+                        microsoftToDoSubmenu.addItem((item) => {
+                            item.setTitle('Testing Commands Enabled');
+                        });
+                        microsoftToDoSubmenu.addSeparator();
+
+
+                        microsoftToDoSubmenu.addItem((item) => {
+                            item.setTitle('Sync Vault').onClick(async () => {
+                                this.msToDoActions.syncVault();
+                            });
+                        });
+
+                        microsoftToDoSubmenu.addItem((item) => {
+                            item.setTitle('Update Task Cache').onClick(async () => {
+                                //await this.msToDoActions.getTaskDelta(this.todoApi, this.settings.todoListSync?.listId, this);
+                            });
+                        });
+    
+                        microsoftToDoSubmenu.addItem((item) => {
+                            item.setTitle('Reset Task Cache').onClick(async () => {
+                                await this.msToDoActions.resetTasksCache();
+                            });
+                        });
+    
+                        microsoftToDoSubmenu.addItem((item) => {
+                            item.setTitle('Cleanup Local Task Lookup Table').onClick(async () => {
+                                await this.msToDoActions.cleanupCachedTaskIds();
+                            });
+                        });
+    
+                        microsoftToDoSubmenu.addItem((item) => {
+                            item.setTitle('Insert all tasks with body').onClick(async () => {
+                                await getAllTasksInList(
+                                    this.todoApi,
+                                    this.settings.todoListSync?.listId,
+                                    editor,
+                                    this,
+                                    true,
+                                );
+                            });
+                        });
+    
+                        microsoftToDoSubmenu.addItem((item) => {
+                            item.setTitle('Insert all tasks').onClick(async () => {
+                                await getAllTasksInList(
+                                    this.todoApi,
+                                    this.settings.todoListSync?.listId,
+                                    editor,
+                                    this,
+                                    false,
+                                );
+                            });
+                        });
+    
+
+                        microsoftToDoSubmenu.addItem((item) => {
+                            item.setTitle('Add Missing Tasks').onClick(async () => {
+                                this.msToDoActions.addMissingTasksToVault(editor);
+                            });
                         });
                     });
 
-                    menu.addItem((item) => {
-                        item.setTitle('Reset Task Cache').onClick(async () => {
-                            await this.msToDoActions.resetTasksCache();
-                        });
-                    });
 
-                    menu.addItem((item) => {
-                        item.setTitle('Cleanup Local Task Lookup Table').onClick(async () => {
-                            await this.msToDoActions.cleanupCachedTaskIds();
-                        });
-                    });
-
-                    menu.addItem((item) => {
-                        item.setTitle('Insert all tasks with body').onClick(async () => {
-                            await getAllTasksInList(
-                                this.todoApi,
-                                this.settings.todoListSync?.listId,
-                                editor,
-                                this,
-                                true,
-                            );
-                        });
-                    });
-
-                    menu.addItem((item) => {
-                        item.setTitle('Insert all tasks').onClick(async () => {
-                            await getAllTasksInList(
-                                this.todoApi,
-                                this.settings.todoListSync?.listId,
-                                editor,
-                                this,
-                                false,
-                            );
-                        });
-                    });
-
-                    menu.addItem((item) => {
-                        item.setTitle('Sync Vault').onClick(async () => {
-                            this.msToDoActions.syncVault();
-                        });
-                    });
-                    menu.addItem((item) => {
-                        item.setTitle('Add Missing Tasks').onClick(async () => {
-                            this.msToDoActions.addMissingTasksToVault(editor);
-                        });
-                    });
                 }),
             );
         }

@@ -246,7 +246,7 @@ export class ObsidianTodoTask implements TodoTask {
             displayName: `Tracking Block Link: ${this.blockLink}`,
         });
 
-        this.logger.debug(`Created: '${this.title}'`);
+        // this.logger.debug(`Created: '${this.title}'`);
     }
 
     public getRedirectUrl(): string {

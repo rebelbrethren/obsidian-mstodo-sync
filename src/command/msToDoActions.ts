@@ -131,15 +131,15 @@ export class MsTodoActions {
 
             const taskId = this.settingsManager.getTaskIdFromBlockId(blockId);
 
-            // Check if the task exists in the remote cache
+            // Check if the task exists in the remote or local cache
             const { list, task: cachedTask } = await this.getListAndTaskFromTaskId(taskId, true);
+            const localTask = localTasks[blockId.toLowerCase()];
 
             if (!list || !cachedTask) {
-                this.logger.info(`Task not found in remote cache: ${taskId}`);
+                this.logger.info(`Task not found in remote cache: ${blockId} - ${taskId}`);
                 continue;
             }
 
-            const localTask = localTasks[blockId.toLowerCase()];
             if (!localTask) {
                 this.logger.info(`Block not found in local tasks: ${blockId}`);
                 continue;
@@ -433,7 +433,7 @@ export class MsTodoActions {
                 // Check if the task ID exists in the block cache.
                 const blockId = task.id ? this.settingsManager.hasTaskId(task.id) : false;
                 if (blockId) {
-                    this.logger.debug(`Task already tracked in vault.`, task.title);
+                    this.logger.debug(`Task already tracked in vault: ${list.name} - `, task.title);
                     continue;
                 }
                 this.logger.debug(`Block not found in vault: ${task.id}`, task.title);
@@ -610,7 +610,7 @@ export class MsTodoActions {
         const { lines } = await this.getCurrentLinesFromEditor(editor);
 
         // Single call to update the cache using the delta link.
-        const cachedTasksDelta = await this.getTaskDelta(listId);
+        const cachedTasksDelta = await this.getTaskDelta();
 
         const split = source.split('\n');
         const modifiedPage = await Promise.all(
@@ -708,7 +708,7 @@ export class MsTodoActions {
         reset: boolean = false,
         skipRemoteCheck: boolean = false,
     ): Promise<ListsDeltaCollection | undefined> {
-        this.logger.debug('getTaskDelta', { reset, skipRemoteCheck });
+        // this.logger.debug('getTaskDelta', { reset, skipRemoteCheck });
 
         if (reset) {
             this.logger.info('Resetting Delta Cache');
@@ -744,13 +744,13 @@ export class MsTodoActions {
             }
 
             if (list.allTasks.length > 0) {
-                this.logger.debug('Cache Details', {
-                    currentCacheCount: list.allTasks.length,
-                    returnedCount: returnedTask.allTasks.length,
-                });
+                // this.logger.debug('Cache Details', {
+                //     currentCacheCount: list.allTasks.length,
+                //     returnedCount: returnedTask.allTasks.length,
+                // });
 
                 list.allTasks = this.mergeCollections(list.allTasks, returnedTask.allTasks);
-                this.logger.debug('Cache Details', { currentCacheCount: list.allTasks.length });
+                // this.logger.debug('Cache Details', { currentCacheCount: list.allTasks.length });
                 list.deltaLink = returnedTask.deltaLink;
             } else {
                 this.logger.info('First run or there was a reset, loading delta cache');
